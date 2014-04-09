@@ -1,0 +1,21 @@
+[submodule "modules/puppi"]
+	path = modules/puppi
+	url = https://github.com/akquinet/puppi.git
+[submodule "modules/apache"]
+	path = modules/apache
+	url = https://github.com/akquinet/puppet-apache.git
+[submodule "modules/archmngt"]
+	path = modules/archmngt
+	url = https://github.com/akquinet/puppet-archmngt.git
+[submodule "modules/pkgmngt"]
+	path = modules/pkgmngt
+	url = https://github.com/akquinet/puppet-pkgmngt.git
+[submodule "modules/stdlib"]
+	path = modules/stdlib
+	url = https://github.com/puppetlabs/puppetlabs-stdlib.git
+[submodule "modules/wget"]
+	path = modules/wget
+	url = https://github.com/akquinet/puppet-wget.git
+[submodule "modules/selinux"]
+	path = modules/selinux
+	url = https://github.com/akquinet/puppet-selinux.git

@@ -1,0 +1,9 @@
+[submodule "modules/wget"]
+	path = modules/wget
+	url = https://github.com/liquidstate/puppet-wget.git
+[submodule "modules/stdlib"]
+	path = modules/stdlib
+	url = https://github.com/puppetlabs/puppetlabs-stdlib.git
+[submodule "modules/unzip"]
+	path = modules/unzip
+	url = https://github.com/akquinet/puppet-unzip.git

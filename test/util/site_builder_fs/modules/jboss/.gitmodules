@@ -1,0 +1,18 @@
+[submodule "modules/java"]
+	path = modules/java
+	url = https://github.com/puppetlabs/puppetlabs-java.git
+[submodule "modules/stdlib"]
+	path = modules/stdlib
+	url = https://github.com/puppetlabs/puppetlabs-stdlib.git
+[submodule "modules/wgetadvanced"]
+	path = modules/wgetadvanced
+	url = https://github.com/saheba/puppet-wget-with-authentication.git
+[submodule "modules/unzip"]
+	path = modules/unzip
+	url = https://github.com/saheba/puppet-unzip.git
+[submodule "modules/wget"]
+	path = modules/wget
+	url = https://github.com/liquidstate/puppet-wget.git
+[submodule "modules/archmngt"]
+	path = modules/archmngt
+	url = https://github.com/akquinet/puppet-archmngt.git

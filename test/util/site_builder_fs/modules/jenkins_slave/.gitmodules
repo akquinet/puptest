@@ -1,0 +1,6 @@
+[submodule "modules/wget"]
+	path = modules/wget
+	url = https://github.com/akquinet/puppet-wget.git
+[submodule "modules/netrc"]
+	path = modules/netrc
+	url = https://github.com/saheba/puppet-netrc.git

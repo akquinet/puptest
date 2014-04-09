@@ -1,0 +1,6 @@
+[submodule "modules/nagios_nrpe"]
+	path = modules/nagios_nrpe
+	url = https://github.com/saheba/puppet-nagios-nrpe.git
+[submodule "modules/wget"]
+	path = modules/wget
+	url = https://github.com/liquidstate/puppet-wget.git
