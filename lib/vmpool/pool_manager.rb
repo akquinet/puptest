@@ -4,6 +4,7 @@
 
 require 'set'
 
+## requires at least libvirt-bin/virsh 0.10.2
 class PoolManager
   attr_reader :opts, :pool
   
