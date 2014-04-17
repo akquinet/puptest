@@ -1,0 +1,81 @@
+Mth 16 13:36:25 hostname NetworkManager[3460]: <warn> /sys/devices/virtual/net/virbr0: couldn't determine device driver; ignoring...
+Mth 16 13:36:25 hostname NetworkManager[3460]:    SCPlugin-Ifupdown: devices added (path: /sys/devices/virtual/net/virbr0, iface: virbr0)
+Mth 16 13:36:25 hostname NetworkManager[3460]:    SCPlugin-Ifupdown: device added (path: /sys/devices/virtual/net/virbr0, iface: virbr0): no ifupdown configuration found.
+Mth 16 13:36:25 hostname NetworkManager[3460]: <warn> /sys/devices/virtual/net/virbr0: couldn't determine device driver; ignoring...
+Mth 16 13:36:25 hostname avahi-daemon[3432]: Joining mDNS multicast group on interface virbr0.IPv4 with address 192.168.122.1.
+Mth 16 13:36:25 hostname avahi-daemon[3432]: New relevant interface virbr0.IPv4 for mDNS.
+Mth 16 13:36:25 hostname avahi-daemon[3432]: Registering new address record for 192.168.122.1 on virbr0.IPv4.
+Mth 16 14:42:38 hostname dnsmasq-dhcp[3788]: DHCPDISCOVER(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 14:42:38 hostname dnsmasq-dhcp[3788]: DHCPOFFER(virbr0) 192.168.122.25 52:54:00:45:8c:ae 
+Mth 16 14:42:38 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.21 ab:54:00:45:8c:ae 
+Mth 16 14:42:38 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.22 ab:54:00:45:8c:ae 
+Mth 16 15:10:09 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.10 53:54:00:45:8c:af 
+Mth 16 15:10:09 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.11 53:54:00:45:8c:af 
+Mth 16 15:13:09 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 15:13:09 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 10.16.2.253 53:54:00:45:8c:af 
+Mth 16 15:18:16 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 15:18:16 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 15:19:38 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 15:19:38 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 15:27:29 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 15:27:29 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 15:29:57 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 15:29:57 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 15:42:46 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 15:42:46 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 16:09:45 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 16:09:45 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 16:35:01 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 16:35:01 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 17:00:59 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 17:00:59 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 17:17:09 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 17:17:09 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 17:19:01 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 17:19:01 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 17:22:25 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 17:22:25 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 17:24:26 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 17:24:26 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 17:24:58 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 17:24:58 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 17:38:44 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 17:38:44 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 18:06:55 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 18:06:55 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 18:27:17 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 18:27:17 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 18:49:03 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 18:49:03 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 19:15:34 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 19:15:34 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 19:41:56 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 19:41:56 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 20:04:53 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 20:04:53 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 20:30:49 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 20:30:49 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 20:53:42 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 20:53:42 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 21:19:03 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 21:19:03 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 21:46:28 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 21:46:28 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 22:13:44 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 22:13:44 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 22:36:03 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 22:36:03 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 23:00:32 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 23:00:32 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 23:26:00 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 23:26:00 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 23:47:04 hostname dnsmasq-dhcp[3788]: DHCPREQUEST(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 23:47:04 hostname dnsmasq-dhcp[3788]: DHCPACK(virbr0) 192.168.122.251 52:54:00:45:8c:af 
+Mth 16 23:58:09 hostname avahi-daemon[3432]: Leaving mDNS multicast group on interface virbr0.IPv4 with address 192.168.122.1.
+Mth 17 08:16:54 hostname NetworkManager[3502]: <warn> /sys/devices/virtual/net/virbr0: couldn't determine device driver; ignoring...
+Mth 17 08:16:54 hostname NetworkManager[3502]:    SCPlugin-Ifupdown: devices added (path: /sys/devices/virtual/net/virbr0, iface: virbr0)
+Mth 17 08:16:54 hostname NetworkManager[3502]:    SCPlugin-Ifupdown: device added (path: /sys/devices/virtual/net/virbr0, iface: virbr0): no ifupdown configuration found.
+Mth 17 08:16:54 hostname NetworkManager[3502]: <warn> /sys/devices/virtual/net/virbr0: couldn't determine device driver; ignoring...
+Mth 17 08:16:54 hostname avahi-daemon[3466]: Joining mDNS multicast group on interface virbr0.IPv4 with address 192.168.122.1.
+Mth 17 08:16:54 hostname avahi-daemon[3466]: New relevant interface virbr0.IPv4 for mDNS.
+Mth 17 08:16:54 hostname avahi-daemon[3466]: Registering new address record for 192.168.122.1 on virbr0.IPv4.

@@ -14,10 +14,12 @@ class PoolManager
     opts = ensure_all_options_are_initialized(opts)
     @opts = opts
     
-    @pool = start_pool
+#    @pool = start_pool
   end
   
   def ensure_all_options_are_initialized(opts={})
+    opts[:vm_host_interface] = 'virbr0' if opts[:vm_host_interface] == nil
+    opts[:vm_host_mac_ip_map_file] = '/var/log/daemon.log' if opts[:vm_host_mac_ip_map_file] == nil
     opts[:vm_host_url] = 'localhost' if opts[:vm_host_url] == nil
     opts[:vm_name_prefix] = 'puptest_' if opts[:vm_name_prefix] == nil
     opts[:base_vm] = 'puptest_base' if opts[:base_vm] == nil
@@ -49,7 +51,7 @@ class PoolManager
   end
   
   def restart_pool(opts=self.opts)
-    @pool = start_pool(opts)
+    start_pool(opts)
   end
   
   def start_pool(opts=self.opts)
@@ -109,6 +111,8 @@ class PoolManager
     ## ensure all pool vms are running    
     ensure_vms_are_running(opts, all_pool_vms)
     
+    @pool = all_pool_vms
+    
     return all_pool_vms
   end
   
@@ -116,6 +120,12 @@ class PoolManager
     opts = ensure_all_options_are_initialized(opts)
     return 'virsh -c qemu+ssh://'+opts[:vm_host_login]+'@'+
       opts[:vm_host_url]+'/'+opts[:vm_level]
+  end
+  
+  def get_ssh_connection_string(opts)
+    opts = ensure_all_options_are_initialized(opts)
+    return 'ssh '+opts[:vm_host_login]+'@'+
+      opts[:vm_host_url]
   end
   
   def get_all_pool_vms(opts,only_running=false)
@@ -136,6 +146,27 @@ class PoolManager
   def get_running_pool_vms(opts)
     return get_all_pool_vms(opts,true)
   end
+  
+  def get_ip_mac_map_of_host_interface(opts)
+    ssh_connection = get_ssh_connection_string(opts)
+    entry_list = run_command(ssh_connection+' "cat '+opts[:vm_host_mac_ip_map_file]+'" | grep '+opts[:vm_host_interface])
+    plain_entries = entry_list[0].split(/\n/)
+    
+    mac_ip_map = Hash.new
+    plain_entries.each do |entry_line|
+      puts entry_line
+      ip_entry = Regexp.new(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/).match(entry_line)
+      mac_entry = Regexp.new(/([0-9a-f]{2}[:-]){5}[0-9a-f]{2}/).match(entry_line)
+      if ip_entry && mac_entry
+        ## last occurrence wins (i.e. overwrites previous occurrences)
+        mac_ip_map[mac_entry[0]] = ip_entry[0]
+      end
+    end
+    
+    return mac_ip_map
+  end
+  
+  private
   
   def ensure_base_vm_exists(opts)
     opts = ensure_all_options_are_initialized(opts)
