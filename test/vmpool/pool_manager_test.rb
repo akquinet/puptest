@@ -82,7 +82,7 @@ class PoolManagerTest < Test::Unit::TestCase
         })
     end
     pool_manager.start_pool()
-    assert_equal(3, pool_manager.pool.size)
+    assert_equal(3, pool_manager.pool.size)    
     
     ## extend running pool
     puts "-----------\nEXTENDING POOL\n-----------"
@@ -95,6 +95,10 @@ class PoolManagerTest < Test::Unit::TestCase
     test_opts[:pool_size] = 2
     pool_manager.restart_pool(test_opts)
     assert_equal(2, pool_manager.pool.size)
+    
+    ## running commands in pool vms
+    ## no threading
+#    puppet_version = run_command_in_pool_vm('puppet --version', test_opts)
     
     assert_equal(2, pool_manager.stop_pool().size)
     assert_equal(2, pool_manager.get_all_pool_vms(test_opts).size)

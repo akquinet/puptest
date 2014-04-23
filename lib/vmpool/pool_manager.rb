@@ -3,10 +3,12 @@
 # and open the template in the editor.
 
 require 'set'
+require 'socket'
+require 'vmpool/callback_server'
 
 ## requires at least libvirt-bin/virsh 0.10.2
 class PoolManager
-  attr_reader :opts, :pool
+  attr_reader :opts, :pool, :currently_in_use, :results, :scripts
   
   PUPTEST_INIT_STATE = 'puptest_init_state'
   
@@ -14,22 +16,30 @@ class PoolManager
     opts = ensure_all_options_are_initialized(opts)
     @opts = opts
     
-#    @pool = start_pool
+    @currently_in_use = Set.new   
   end
   
   def ensure_all_options_are_initialized(opts={})
+    opts[:callback_server_ip] = '192.168.122.1' if opts[:callback_server_ip] == nil
+    opts[:callback_server_port] = 2828 if opts[:callback_server_port] == nil
+    opts[:vm_network_for_ssh] = 'default' if opts[:vm_network_for_ssh] == nil
     opts[:vm_host_interface] = 'virbr0' if opts[:vm_host_interface] == nil
     opts[:vm_host_mac_ip_map_file] = '/var/log/daemon.log' if opts[:vm_host_mac_ip_map_file] == nil
+    opts[:run_connection_attempts] = 3 if opts[:run_connection_attempts] == nil
+    opts[:wait_between_connection_attempts] = 20 if opts[:wait_between_connection_attempts] == nil
     opts[:vm_host_url] = 'localhost' if opts[:vm_host_url] == nil
     opts[:vm_name_prefix] = 'puptest_' if opts[:vm_name_prefix] == nil
     opts[:base_vm] = 'puptest_base' if opts[:base_vm] == nil
     opts[:pool_size] = 3 if opts[:pool_size] == nil
     opts[:vm_engine] = 'kvm' if opts[:vm_engine] == nil
-    opts[:vm_host_login] = 'root' if opts[:vm_engine] == nil
+    opts[:vm_host_login] = 'root' if opts[:vm_host_login] == nil
     opts[:vm_level] = 'system' if opts[:vm_level] == nil
     opts[:vol_pool_path] = '/tmp' if opts[:vol_pool_path] == nil
     opts[:vol_file_suffix] = '.qcow2' if opts[:vol_file_suffix] == nil
     opts[:init_snapshot_name] = PUPTEST_INIT_STATE if opts[:init_snapshot_name] == nil
+    opts[:pool_vm_login] = 'root' if opts[:pool_vm_login] == nil
+    opts[:pool_vm_identity_file] = '/tmp/puptest-base_rsa' if opts[:pool_vm_identity_file] == nil
+    
     # note that key-based ssh authentication is required for security reasons  
     return opts
   end
@@ -44,7 +54,7 @@ class PoolManager
     return all_pool_vms
   end
   
-   def stop_pool(opts=self.opts)    
+  def stop_pool(opts=self.opts)    
     result = stop_vms(opts,get_all_pool_vms(opts))
     @pool = Set.new
     return result
@@ -52,6 +62,34 @@ class PoolManager
   
   def restart_pool(opts=self.opts)
     start_pool(opts)
+  end
+  
+  def occupy(pool=self.pool,in_use = self.currently_in_use)
+    ## select vm
+    selected_vm = pool.to_a[0]
+    
+    ## remove vm from pool of usable vms
+    pool.delete(selected_vm)
+    in_use.add(selected_vm)
+    
+    return selected_vm
+  end
+  
+  def free(vm, pool=self.pool, opts=self.opts, in_use = self.currently_in_use)
+    virsh_connection = get_virsh_connection_string(opts)
+    in_use.delete(vm)
+    info = run_command(virsh_connection+' snapshot-dumpxml '+vm+' '+opts[:init_snapshot_name])
+    if info[1] == 0
+      pool, vm = revert_vm(pool,vm,opts)
+    else
+      # TODO delete vm pysically
+      delete_vm(opts,vm)
+      pool.delete(vm)
+      pool, vm = add_vm_to_pool(pool,opts)
+      ensure_vms_are_running(opts,[vm])
+    end
+    
+    return pool, vm
   end
   
   def start_pool(opts=self.opts)
@@ -67,19 +105,7 @@ class PoolManager
     ## if so reset each pool vm to this init snapshot state otherwise delete the vm
     ## TODO refactor using blocks
     all_pool_vms_duplicate.each do |pool_vm|
-      info = run_command(virsh_connection+' snapshot-dumpxml '+pool_vm+' '+opts[:init_snapshot_name])
-      if info[1] == 0
-        revert = run_command(virsh_connection+' snapshot-revert '+pool_vm+' '+opts[:init_snapshot_name])
-        if revert[1] != 0
-          # TODO delete vm physically
-          delete_vm(opts,pool_vm)
-          all_pool_vms.delete(pool_vm)
-        end
-      else
-        # TODO delete vm pysically
-        delete_vm(opts,pool_vm)
-        all_pool_vms.delete(pool_vm)
-      end
+      all_pool_vms, vm = free(pool_vm, all_pool_vms, opts=self.opts)
     end
     
     ## adjust pool to defined pool size
@@ -100,10 +126,7 @@ class PoolManager
         end
       elsif (pool_change_type == :extend)
         (1..break_condition).each do
-          vm_name = clone_base_vm(opts)
-          ## create snapshot in VM
-          create_vm_snapshot(opts,vm_name)
-          all_pool_vms.add(vm_name)
+          all_pool_vms, pool_vm = add_vm_to_pool(all_pool_vms,opts)
         end
       end
     end
@@ -114,6 +137,27 @@ class PoolManager
     @pool = all_pool_vms
     
     return all_pool_vms
+  end
+  
+  def revert_vm(pool,vm,opts)
+    opts = ensure_all_options_are_initialized(opts)
+    virsh_connection = get_virsh_connection_string(opts)
+    revert = run_command(virsh_connection+' snapshot-revert '+vm+' '+opts[:init_snapshot_name])
+    if revert[1] != 0
+      # TODO delete vm physically
+      delete_vm(opts,vm)
+      pool.delete(vm)
+      pool, vm = add_vm_to_pool(pool,opts)
+    end
+    return pool, vm
+  end
+  
+  def add_vm_to_pool(pool,opts)
+    vm_name = clone_base_vm(opts)
+    ## create snapshot in VM
+    create_vm_snapshot(opts,vm_name)
+    pool.add(vm_name)
+    return pool, vm_name
   end
   
   def get_virsh_connection_string(opts)
@@ -155,8 +199,8 @@ class PoolManager
     mac_ip_map = Hash.new
     plain_entries.each do |entry_line|
       puts entry_line
-      ip_entry = Regexp.new(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/).match(entry_line)
-      mac_entry = Regexp.new(/([0-9a-f]{2}[:-]){5}[0-9a-f]{2}/).match(entry_line)
+      ip_entry = regexp_match_ip(entry_line)
+      mac_entry = regexp_match_mac(entry_line)
       if ip_entry && mac_entry
         ## last occurrence wins (i.e. overwrites previous occurrences)
         mac_ip_map[mac_entry[0]] = ip_entry[0]
@@ -166,7 +210,79 @@ class PoolManager
     return mac_ip_map
   end
   
+  def get_vm_ssh_connection_string(vm,opts=self.opts)
+    ip = get_ssh_connection_ip_of_vm(vm,opts)
+    return 'ssh '+opts[:pool_vm_login]+'@'+ip+' -i '+opts[:pool_vm_identity_file]
+  end
+  
+  def get_ssh_connection_ip_of_vm(vm,opts=self.opts)
+    mac_ip_map = get_ip_mac_map_of_host_interface(opts)
+    ## determine mac address of vm
+    virsh_connection = get_virsh_connection_string(opts)    
+    domiflist = run_command(virsh_connection+' domiflist '+vm)
+    iflist_lines = domiflist.split('\n')
+        
+    iflist_lines.each do |line|
+      network_match = Regexp.new(/#{opts[:vm_network_for_ssh]}/).match(line)
+      if network_match
+        mac_address = regexp_match_mac(line)
+        if (mac_address && mac_ip_map[mac_address])
+          return mac_ip_map[mac_address]
+        end
+      end
+    end
+    
+    return nil
+  end
+  
+  ## scripts is an array of Script objects
+  def initialize_script_stack(scripts)
+    @results = Set.new
+    @scripts = scripts
+  end
+  
+  ## script is a script object
+  def run_script_in_parallel(script, selected_vm, 
+      opts=self.opts, pool=self.pool, in_use=self.currently_in_use)
+    pool_manager = this
+    thread = Thread.new {
+   
+    
+      vm_ssh_connection = get_vm_ssh_connection_string(selected_vm,opts)      
+      script.commands.each do |command|
+        result = run_command(vm_ssh_connection+' '+command)
+        script.add_result_by_command(command, result)        
+      end
+    
+      pool_manager.free(selected_vm,pool,opts,in_use)
+      pool_manager.run_next_script_in_parallel(selected_vm,pool,opts,in_use)
+    }    
+    
+    return script, thread
+  end
+  
+  def run_command_in_pool_vm(command, vm, opts=self.opts)
+    opts = ensure_all_options_are_initialized(opts)
+    if pool == nil
+      raise(ConnectionOrExecuteException,'Pool is not (yet) initiated. Run pool_start before you run a command in a pool vm')
+    end
+    ## run command in selected vm
+    vm_ssh_connection = get_vm_ssh_connection_string(vm,opts)
+    result = run_command(vm_ssh_connection+' '+command)
+    
+    ## return output array [output, statuscode]
+    return result
+  end
+  
   private
+  
+  def regexp_match_ip(line)
+    return Regexp.new(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/).match(line)
+  end
+  
+  def regexp_match_mac(line)
+    return Regexp.new(/([0-9a-f]{2}[:-]){5}[0-9a-f]{2}/).match(line)
+  end
   
   def ensure_base_vm_exists(opts)
     opts = ensure_all_options_are_initialized(opts)
@@ -185,7 +301,7 @@ class PoolManager
     virsh_connection = get_virsh_connection_string(opts)
     list_snapshots = run_command(virsh_connection+' snapshot-list '+vm_name)
     if list_snapshots[1] != 0
-          raise(ConnectionOrExecuteException,'Snapshots could not be listed for vm: '+vm_name)
+      raise(ConnectionOrExecuteException,'Snapshots could not be listed for vm: '+vm_name)
     end
     snapshot_lines = array_to_set(list_snapshots[0].split(/\n/))
     snapshot_lines.each do |line|   
@@ -234,6 +350,11 @@ class PoolManager
           start_vm = run_command(virsh_connection+' resume '+vm)
         else
           start_vm = run_command(virsh_connection+' start '+vm)
+          puts "trying to start callback server "+opts[:callback_server_ip]+':'+opts[:callback_server_port].to_s
+          thread = CallbackServer.new.wait_for_callback(opts) { |msg| 
+            puts "received msg from completely started server: "+msg              
+          }
+          thread.join
         end
         if start_vm[1] != 0
           raise(PoolStartException,'VM '+vm+' could not be started or resumed.')
