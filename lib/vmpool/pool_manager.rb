@@ -8,7 +8,7 @@ require 'vmpool/callback_server'
 
 ## requires at least libvirt-bin/virsh 0.10.2
 class PoolManager
-  attr_reader :opts, :pool, :currently_in_use, :results, :scripts
+  attr_reader :opts, :pool, :currently_in_use
   
   PUPTEST_INIT_STATE = 'puptest_init_state'
   
@@ -67,7 +67,6 @@ class PoolManager
   def occupy(pool=self.pool,in_use = self.currently_in_use)
     ## select vm
     selected_vm = pool.to_a[0]
-    
     ## remove vm from pool of usable vms
     pool.delete(selected_vm)
     in_use.add(selected_vm)
@@ -81,6 +80,8 @@ class PoolManager
     info = run_command(virsh_connection+' snapshot-dumpxml '+vm+' '+opts[:init_snapshot_name])
     if info[1] == 0
       pool, vm = revert_vm(pool,vm,opts)
+      ## revert_vm does not necessarily add vm back to pool
+      pool.add(vm)
     else
       # TODO delete vm pysically
       delete_vm(opts,vm)
@@ -88,7 +89,6 @@ class PoolManager
       pool, vm = add_vm_to_pool(pool,opts)
       ensure_vms_are_running(opts,[vm])
     end
-    
     return pool, vm
   end
   
@@ -236,30 +236,6 @@ class PoolManager
   end
   
   ## scripts is an array of Script objects
-  def initialize_script_stack(scripts)
-    @results = Set.new
-    @scripts = scripts
-  end
-  
-  ## script is a script object
-  def run_script_in_parallel(script, selected_vm, 
-      opts=self.opts, pool=self.pool, in_use=self.currently_in_use)
-    pool_manager = this
-    thread = Thread.new {
-   
-    
-      vm_ssh_connection = get_vm_ssh_connection_string(selected_vm,opts)      
-      script.commands.each do |command|
-        result = run_command(vm_ssh_connection+' '+command)
-        script.add_result_by_command(command, result)        
-      end
-    
-      pool_manager.free(selected_vm,pool,opts,in_use)
-      pool_manager.run_next_script_in_parallel(selected_vm,pool,opts,in_use)
-    }    
-    
-    return script, thread
-  end
   
   def run_command_in_pool_vm(command, vm, opts=self.opts)
     opts = ensure_all_options_are_initialized(opts)
@@ -331,17 +307,46 @@ class PoolManager
     return create_snapshot[0]
   end
   
+  def list_vm_names(opts,state=:running)
+    virsh_connection = get_virsh_connection_string(opts)
+    case state 
+    when :running
+      state_param = '--state-running'
+    when :paused
+      state_param = '--state-paused'
+#    when :shutoff
+#      state_param = '--state-shutoff'
+    when :all
+      state_param = '--all'
+    else
+      state_param = ''
+    end
+    
+    vms = nil
+    if state != :shutoff
+      vms_list = run_command(virsh_connection+' list --name '+state_param)    
+      if vms_list[1] != 0
+        raise(ConnectionOrExecuteException,'vm list could not be executed properly. (state = '+state.to_s+')')
+      end
+      vms = array_to_set(vms_list[0].split(/\n/))
+    else
+      ## --state-shutoff bug workaround (--state-shutoff does not filter correctly)
+      all_vms = list_vm_names(opts,:all)
+      running_vms = list_vm_names(opts,:running)
+      paused_vms = list_vm_names(opts,:paused)
+      not_stopped = running_vms + paused_vms
+      vms = all_vms - not_stopped      
+    end
+    
+    return vms
+  end
+  
   def ensure_vms_are_running(opts,vms)
     opts = ensure_all_options_are_initialized(opts)
     virsh_connection = get_virsh_connection_string(opts)
-    running_vms_list = run_command(virsh_connection+' list --name --state-running')    
-    paused_vms_list = run_command(virsh_connection+' list --name --state-paused')    
-    if running_vms_list[1] != 0 || paused_vms_list[1] != 0
-      raise(ConnectionOrExecuteException,'vm list could not be executed properly.')
-    end
     
-    running_vms = array_to_set(running_vms_list[0].split(/\n/))
-    paused_vms = array_to_set(paused_vms_list[0].split(/\n/))
+    running_vms = list_vm_names(opts)
+    paused_vms = list_vm_names(opts,:paused)
     
     mutex = Mutex.new
     mutex.synchronize do
@@ -371,8 +376,20 @@ class PoolManager
   def delete_vm(opts,vm_name)
     ## remove all snapshots of vm
     delete_all_snapshots(opts,vm_name)
+    
+    virsh_connection = get_virsh_connection_string(opts)    
+    ## ensure vm is stopped    
+    stopped_vms = list_vm_names(opts,:shutoff)
+    stopped_status = 0
+    if (!stopped_vms.include?(vm_name))
+      output, stopped_status = deactivate_vm(opts,vm_name,'destroy')      
+    end
     ## then delete vm
-    return deactivate_vm(opts,vm_name,'undefine --remove-all-storage')
+    result = [output,stopped_status]
+    if (stopped_status == 0)
+      result = deactivate_vm(opts,vm_name,'undefine --remove-all-storage')
+    end
+    return result
   end
   
   def stop_vms(opts,vms)

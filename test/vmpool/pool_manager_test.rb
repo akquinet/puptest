@@ -106,4 +106,35 @@ class PoolManagerTest < Test::Unit::TestCase
     assert_equal(2, pool_manager.delete_pool().size)
     assert_nil(pool_manager.pool)
   end
+  
+  def test_occupy_free
+    test_opts = {
+        :vm_host_url => 'localhost',
+        :vm_host_login => 'root',
+        :pool_size => 2,
+        :vol_pool_path => '/opt/kvm'
+      }
+    
+    pool_manager = PoolManager.new(test_opts)
+    pool_manager.start_pool()
+    
+    assert_equal(2, pool_manager.pool.size)  
+    assert_equal(0,pool_manager.currently_in_use.size)
+    
+    selected_vm = pool_manager.occupy
+    assert_equal(true,pool_manager.currently_in_use.include?(selected_vm))
+    assert_equal(false,pool_manager.pool.include?(selected_vm))
+    assert_equal(1, pool_manager.pool.size)  
+    assert_equal(1,pool_manager.currently_in_use.size)
+    
+    pool_manager.free(selected_vm)
+    assert_equal(0,pool_manager.currently_in_use.size)
+    assert_equal(false,pool_manager.currently_in_use.include?(selected_vm))
+    assert_equal(true,pool_manager.pool.include?(selected_vm))
+    assert_equal(2, pool_manager.pool.size)  
+    assert_equal(0,pool_manager.currently_in_use.size)
+    
+    assert_equal(2, pool_manager.delete_pool().size)
+    assert_nil(pool_manager.pool)
+  end
 end
