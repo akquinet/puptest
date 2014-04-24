@@ -342,26 +342,29 @@ class PoolManager
     
     running_vms = array_to_set(running_vms_list[0].split(/\n/))
     paused_vms = array_to_set(paused_vms_list[0].split(/\n/))
-    vms.each do |vm|
-      if (!running_vms.include?(vm))
-        ## try to start i.e. resume vm
-        start_vm = nil
-        if (paused_vms.include?(vm))
-          start_vm = run_command(virsh_connection+' resume '+vm)
-        else
-          start_vm = run_command(virsh_connection+' start '+vm)
-          puts "trying to start callback server "+opts[:callback_server_ip]+':'+opts[:callback_server_port].to_s
-          thread = CallbackServer.new.wait_for_callback(opts) { |msg| 
-            puts "received msg from completely started server: "+msg              
-          }
-          thread.join
-        end
-        if start_vm[1] != 0
-          raise(PoolStartException,'VM '+vm+' could not be started or resumed.')
+    
+    mutex = Mutex.new
+    mutex.synchronize do
+      vms.each do |vm|
+        if (!running_vms.include?(vm))
+          ## try to start i.e. resume vm
+          start_vm = nil
+          if (paused_vms.include?(vm))
+            start_vm = run_command(virsh_connection+' resume '+vm)
+          else
+            start_vm = run_command(virsh_connection+' start '+vm)
+            puts "trying to start callback server "+opts[:callback_server_ip]+':'+opts[:callback_server_port].to_s
+            thread = CallbackServer.new.wait_for_callback(opts) { |msg| 
+              puts "received msg from completely started server: "+msg              
+            }
+            thread.join
+          end
+          if start_vm[1] != 0
+            raise(PoolStartException,'VM '+vm+' could not be started or resumed.')
+          end
         end
       end
-    end
-    
+    end    
     return vms
   end
   
