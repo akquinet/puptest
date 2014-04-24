@@ -6,6 +6,7 @@ $:.unshift File.join(File.dirname(__FILE__),'..'+File::SEPARATOR+'..','lib')
 puts File.join(File.dirname(__FILE__),'..'+File::SEPARATOR+'..','lib')
 
 require 'test/unit'
+require 'set'
 require 'vmpool/script_runner'
 require 'vmpool/script'
 
@@ -17,7 +18,7 @@ end
 
 class DummyPoolManager
   
-  attr_reader :pool, :index, :free_count, :run_command_count
+  attr_reader :pool, :index, :free_count, :run_command_count, :thread_ids
   
   def initialize(script_array)
     @index = 0
@@ -25,6 +26,7 @@ class DummyPoolManager
     @run_command_count = 0
     @script_array = script_array
     @pool = [1,2]
+    @thread_ids = Set.new
   end
   
   def occupy
@@ -41,9 +43,14 @@ class DummyPoolManager
   def run_command_in_pool_vm(command, vm)
     @run_command_count += 1
     statuscode = 0
-    if (@run_command_count % 3 == 0)
-      statuscode = 1
+    @thread_ids.add(Thread.current.to_s)
+    #puts "running command "+command+" in vm "+vm+" in thread "+Thread.current.to_s
+    
+    if ((Integer(command.gsub('command ', ''))+1) % 3 == 0)
+        #puts "command "+command+" >> "+((Integer(command.gsub('command ', ''))+1) % 3).to_s
+        statuscode = 1
     end
+    
     return 'result: '+command, statuscode
   end
 end
@@ -80,6 +87,8 @@ class ScriptRunnerDummyPMTest < Test::Unit::TestCase
     assert_equal(30,pool_manager.run_command_count)
     assert_equal(2,pool_manager.index)
     assert_equal(9,script_runner.exec_counter)
+    assert_equal(10,pool_manager.thread_ids.size)
+    
     10.times do |i|      
       
       3.times do |j|
@@ -87,6 +96,7 @@ class ScriptRunnerDummyPMTest < Test::Unit::TestCase
         if (j == 2)
           expected = 1
         end
+        puts "i = "+i.to_s+", j = "+j.to_s
         assert_equal(expected, test_scripts[i].statuscodes[j])
         assert_equal('result: '+test_scripts[i].commands[j], test_scripts[i].results[j])
       end
