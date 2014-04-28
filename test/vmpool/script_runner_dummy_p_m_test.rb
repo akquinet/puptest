@@ -83,7 +83,7 @@ class ScriptRunnerDummyPMTest < Test::Unit::TestCase
     
     pool_manager = DummyPoolManager.new(test_scripts)
     script_runner = ScriptRunnerMock.new(test_scripts,pool_manager)
-    script_runner.run
+    script_runner.run()
     assert_equal(30,pool_manager.run_command_count)
     assert_equal(2,pool_manager.index)
     assert_equal(9,script_runner.exec_counter)
