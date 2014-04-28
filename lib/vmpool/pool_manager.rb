@@ -168,7 +168,7 @@ class PoolManager
   
   def get_ssh_connection_string(opts)
     opts = ensure_all_options_are_initialized(opts)
-    return 'ssh '+opts[:vm_host_login]+'@'+
+    return 'ssh -o StrictHostKeyChecking=no -o HashKnownHosts=no '+opts[:vm_host_login]+'@'+
       opts[:vm_host_url]
   end
   
@@ -198,7 +198,6 @@ class PoolManager
     
     mac_ip_map = Hash.new
     plain_entries.each do |entry_line|
-      puts entry_line
       ip_entry = regexp_match_ip(entry_line)
       mac_entry = regexp_match_mac(entry_line)
       if ip_entry && mac_entry
@@ -212,22 +211,27 @@ class PoolManager
   
   def get_vm_ssh_connection_string(vm,opts=self.opts)
     ip = get_ssh_connection_ip_of_vm(vm,opts)
-    return 'ssh '+opts[:pool_vm_login]+'@'+ip+' -i '+opts[:pool_vm_identity_file]
+    return 'ssh -o StrictHostKeyChecking=no -o HashKnownHosts=no -i '+opts[:pool_vm_identity_file]+' '+opts[:pool_vm_login]+'@'+ip
   end
   
   def get_ssh_connection_ip_of_vm(vm,opts=self.opts)
     mac_ip_map = get_ip_mac_map_of_host_interface(opts)
+    
     ## determine mac address of vm
     virsh_connection = get_virsh_connection_string(opts)    
-    domiflist = run_command(virsh_connection+' domiflist '+vm)
-    iflist_lines = domiflist.split('\n')
+    domiflist,statuscode = run_command(virsh_connection+' domiflist '+vm)
+    if statuscode != 0
+      raise(ConnectionOrExecuteException,'virsh domiflist failed for vm: '+vm)
+    end
+    iflist_lines = domiflist.split(/\n/)
         
     iflist_lines.each do |line|
-      network_match = Regexp.new(/#{opts[:vm_network_for_ssh]}/).match(line)
+      regexp = Regexp.new(/#{opts[:vm_network_for_ssh]}/)
+      network_match = regexp.match(line)            
       if network_match
         mac_address = regexp_match_mac(line)
-        if (mac_address && mac_ip_map[mac_address])
-          return mac_ip_map[mac_address]
+         if (mac_address && mac_ip_map[mac_address[0]])
+          return mac_ip_map[mac_address[0]]
         end
       end
     end
@@ -244,10 +248,10 @@ class PoolManager
     end
     ## run command in selected vm
     vm_ssh_connection = get_vm_ssh_connection_string(vm,opts)
-    result = run_command(vm_ssh_connection+' '+command)
+    output, statuscode = run_command(vm_ssh_connection+' '+command)
     
     ## return output array [output, statuscode]
-    return result
+    return output, statuscode
   end
   
   private
@@ -461,7 +465,7 @@ class PoolManager
       out = `#{cmd}`.chomp
     end
       
-    return out, $?
+    return out, $?.exitstatus
   end
 end
 

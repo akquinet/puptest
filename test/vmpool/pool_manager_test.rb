@@ -106,14 +106,17 @@ class PoolManagerTest < Test::Unit::TestCase
     assert_equal(2, pool_manager.delete_pool().size)
     assert_nil(pool_manager.pool)
   end
+ 
   
-  def test_occupy_free
+  def test_occupy_run_command_free
     test_opts = {
         :vm_host_url => 'localhost',
         :vm_host_login => 'root',
         :pool_size => 2,
-        :vol_pool_path => '/opt/kvm'
+        :vol_pool_path => '/opt/kvm',
+        :pool_vm_identity_file => File.dirname(__FILE__)+File::SEPARATOR+'puptest-base_rsa'
       }
+      FileUtils.chmod(0600,test_opts[:pool_vm_identity_file])
     
     pool_manager = PoolManager.new(test_opts)
     pool_manager.start_pool()
@@ -126,6 +129,12 @@ class PoolManagerTest < Test::Unit::TestCase
     assert_equal(false,pool_manager.pool.include?(selected_vm))
     assert_equal(1, pool_manager.pool.size)  
     assert_equal(1,pool_manager.currently_in_use.size)
+    
+    output, statuscode = pool_manager.run_command_in_pool_vm('echo test_output', selected_vm)
+    assert_equal(0,statuscode)
+    assert_equal('test_output',output)
+    output, statuscode = pool_manager.run_command_in_pool_vm('exfgscho test_output', selected_vm)
+    assert_equal(127,statuscode)    
     
     pool_manager.free(selected_vm)
     assert_equal(0,pool_manager.currently_in_use.size)
