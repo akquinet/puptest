@@ -5,12 +5,13 @@
 require 'inifile'
 
 class ConfigReader
-  attr_reader :configuration
+  attr_reader :opts, :puppetmaster_opts
   
-  def initialize(inifile_path)
+  def initialize(inifile_path, ppinifile_path)
     inifile = IniFile.load(inifile_path)
-    @configuration = Configuration.new(inifile['default'])
-    
+    @opts = Configuration.new(inifile['default'])
+    ppinifile = IniFile.load(ppinifile_path)
+    @puppetmaster_opts = Configuration.new(ppinifile['master'])
   end
 end
 
