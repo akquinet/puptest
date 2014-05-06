@@ -12,14 +12,26 @@ class ChangeDetector
     
   end
   
-  def detect_changes(repo_url, destination_dir, promoted_branch, dev_branch, file_suffix, module_dir='modules', path_to_root_pp= 'manifests', root_pp_file_name=SiteBuilder::SITE_PP)
+  def ensure_all_required_options_are_set(opts)
+    if (opts == nil)
+      opts = Hash.new
+    end
+    
+    opts[:path_to_root_pp] = 'manifests' if opts[:path_to_root_pp] == nil
+    opts[:root_pp_file_name] = SiteBuilder::SITE_PP if opts[:root_pp_file_name] == nil
+    
+    return opts
+  end
+  
+  def detect_changes(repo_url, opts)
     scm_change_inspector = GitChangeInspector.new()
-    change_set = scm_change_inspector.investigate_repo(repo_url, destination_dir, promoted_branch, dev_branch, file_suffix, module_dir)
+    change_set = scm_change_inspector.investigate_repo(repo_url, opts)
     module_initializer = ModuleInitializer.new(scm_change_inspector.repo_destination)
     module_initializer.install_modules()
     site_builder = SiteBuilder.new()
-    abs_path_to_root_pp = scm_change_inspector.repo_destination + File::SEPARATOR + path_to_root_pp
-    site_builder.buildEffectiveSitePP(abs_path_to_root_pp,module_dir,root_pp_file_name)
+    opts = ensure_all_required_options_are_set(opts)    
+    abs_path_to_root_pp = scm_change_inspector.repo_destination + File::SEPARATOR + opts[:path_to_root_pp]
+    site_builder.buildEffectiveSitePP(abs_path_to_root_pp,opts[:modules_dir],opts[:root_pp_file_name])
     
     ## walk through list of changed modules and figure out which nodes are 
     ## affected using the module and the dependency trees built with the
