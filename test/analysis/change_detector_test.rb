@@ -11,7 +11,7 @@ require 'analysis/change_detector'
 require 'util/item'
 
 class ChangeDetectorTest < Test::Unit::TestCase
-  def test_detect_changes
+  def test_generate_affection_tree
     change_detector = ChangeDetector.new()
     
     module_tree = Hash.new
