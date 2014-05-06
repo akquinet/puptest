@@ -139,7 +139,7 @@ class GitChangeInspectorTest < Test::Unit::TestCase
     }
     base_repo = File.dirname(__FILE__) + FSEP + 'change_inspector_repo'
     inspector = GitChangeInspector.new    
-    scm_repo = inspector.clone_repo(base_repo, FSEP+'tmp', 'test_analyse_files_for_module_changes')  
+    scm_repo = inspector.clone_repo(base_repo, FSEP+'tmp', 'test_analyse_files_for_module_changes')
         
     ## initial usage of framework
     changed_modules_hash = inspector.analyse_files_for_module_changes(
