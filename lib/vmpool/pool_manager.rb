@@ -5,9 +5,12 @@
 require 'set'
 require 'socket'
 require 'vmpool/callback_server'
+require 'util/command_module'
 
 ## requires at least libvirt-bin/virsh 0.10.2
 class PoolManager
+  include CommandModule
+  
   attr_reader :opts, :pool, :currently_in_use
   
   PUPTEST_INIT_STATE = 'puptest_init_state'
@@ -456,17 +459,6 @@ class PoolManager
     return set
   end
   
-  def run_command(cmd, &block)
-    puts "executing cmd: "+cmd
-    if block_given?
-      out = IO.popen(cmd, &block)
-      out.readlines
-    else
-      out = `#{cmd}`.chomp
-    end
-      
-    return out, $?.exitstatus
-  end
 end
 
 class PoolStartException < StandardError
