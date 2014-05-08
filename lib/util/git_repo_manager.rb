@@ -16,8 +16,13 @@ module GitRepoManager
     repo_destination=destination_dir+File::SEPARATOR+repo_name
     
     cleanup(repo_destination)
-    
-    return Git.clone(repo_url, repo_destination, :bare => false)
+    result = nil
+    if bare == false
+      result = Git.clone(repo_url, repo_destination, {:bare => false})
+    else
+      result = Git.clone(repo_url, repo_destination, {:bare => true})
+    end
+    return result
   end
   
   def cleanup(repo_destination)
