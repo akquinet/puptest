@@ -28,8 +28,6 @@ class PoolManager
     opts[:vm_network_for_ssh] = 'default' if opts[:vm_network_for_ssh] == nil
     opts[:vm_host_interface] = 'virbr0' if opts[:vm_host_interface] == nil
     opts[:vm_host_mac_ip_map_file] = '/var/log/daemon.log' if opts[:vm_host_mac_ip_map_file] == nil
-    opts[:run_connection_attempts] = 3 if opts[:run_connection_attempts] == nil
-    opts[:wait_between_connection_attempts] = 20 if opts[:wait_between_connection_attempts] == nil
     opts[:vm_host_url] = 'localhost' if opts[:vm_host_url] == nil
     opts[:vm_name_prefix] = 'puptest_' if opts[:vm_name_prefix] == nil
     opts[:base_vm] = 'puptest_base' if opts[:base_vm] == nil
