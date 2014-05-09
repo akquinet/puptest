@@ -10,6 +10,34 @@ require 'util/item'
 require 'set'
 
 class SiteBuilderTest < Test::Unit::TestCase    
+  def test_parse_modulefiles_for_dependency_declarations
+    module_root = File.join(File.dirname(__FILE__),'site_builder_modulefile_parsing')
+    expected_results = Hash.new()
+    apt_module = Item.new(Item::MODULE,:plain_name,'apt')
+    stdlib_module = Item.new(Item::MODULE,:plain_name,'stdlib')
+    vcsrepo_module = Item.new(Item::MODULE,:plain_name,'vcsrepo')
+    
+    expected_results['git'] = Item.new(Item::MODULE,:plain_name,'git')
+    expected_results['nodejs'] = Item.new(Item::MODULE,:plain_name,'nodejs')
+    
+    expected_results['git']['vcsrepo'] = vcsrepo_module
+    expected_results['nodejs']['apt'] = apt_module
+    expected_results['nodejs']['stdlib'] = stdlib_module
+    results = SiteBuilder.new().parse_modulefiles_for_dependency_declarations(Hash.new(),module_root)
+    assert_equal(expected_results.size,results.size)
+    expected_results.each do |key, item|
+      assert_not_nil(results[key])
+      puts "checking result: "+key
+      puts results[key].to_s
+      item.each do |dependency_key,dependency|
+        puts "checking dependency "+dependency_key+" ... "+dependency.name
+        assert_not_nil(results[key][dependency_key])
+        assert_equal(dependency.name, results[key][dependency_key].name)
+      end
+    end
+    
+  end
+  
   def test_handle_import_statements  
     test_file_system = File.expand_path(File.dirname(__FILE__)) + File::SEPARATOR + "site_builder_fs"
       
@@ -38,7 +66,7 @@ class SiteBuilderTest < Test::Unit::TestCase
     site_builder = SiteBuilder.new()
     site_builder.build_effective_site_pp(test_file_system)
     puts site_builder
-  
+    
     fsep = File::SEPARATOR
     abs_manifests = test_file_system + fsep + "nodes"
     abs_2_manifests = test_file_system + fsep + "nodes2"
@@ -60,28 +88,28 @@ class SiteBuilderTest < Test::Unit::TestCase
     5.times do |i|  
       nodename=abs_manifests+fsep+'node'+ (i+1).to_s+'.pp'      
 #      if (i==0) 
-#        assert_equal(true,site_builder.depencendy_tree.has_key?(nodename))
-#        assert_equal(true,site_builder.depencendy_tree.has_key?(nodename+domain))
+#        assert_equal(true,site_builder.dependency_tree.has_key?(nodename))
+#        assert_equal(true,site_builder.dependency_tree.has_key?(nodename+domain))
 #        if expected_children.has_key?(nodename+domain)
 #        puts nodename+domain + " found"
 #        duplicate_set=expected_children[nodename+domain].clone()
-#        site_builder.depencendy_tree[nodename+domain].each_value do |child|
+#        site_builder.dependency_tree[nodename+domain].each_value do |child|
 #          result= duplicate_set.delete?(child.name)
 #          assert_not_nil(result)
 #        end
 #        assert_equal(0,duplicate_set.size())
 #      end
 #      else
-      assert_equal(true,site_builder.depencendy_tree.has_key?(nodename))
+      assert_equal(true,site_builder.dependency_tree.has_key?(nodename))
 #      end
       if (i==0)
-        assert(site_builder.depencendy_tree[nodename].short_names.include?('node1'+domain))
+        assert(site_builder.dependency_tree[nodename].short_names.include?('node1'+domain))
       end
       
       if expected_children.has_key?(nodename)
         puts nodename + " found"
         duplicate_set=expected_children[nodename].clone()
-        site_builder.depencendy_tree[nodename].each_value do |child|
+        site_builder.dependency_tree[nodename].each_value do |child|
           result= duplicate_set.delete?(child.name)
           assert_not_nil(result)
         end
@@ -90,18 +118,18 @@ class SiteBuilderTest < Test::Unit::TestCase
     end
       
     3.times do |i|  
-      assert_equal(true,site_builder.depencendy_tree.has_key?(abs_sub_manifests+fsep+'subnode'+ (i+1).to_s+'.pp'))
+      assert_equal(true,site_builder.dependency_tree.has_key?(abs_sub_manifests+fsep+'subnode'+ (i+1).to_s+'.pp'))
     end
     1.times do |i|  
-      assert_equal(true,site_builder.depencendy_tree.has_key?(abs_sub_manifests+fsep+'subsubfolder'+fsep+'subsubnode'+ (i+1).to_s+'.pp'))
+      assert_equal(true,site_builder.dependency_tree.has_key?(abs_sub_manifests+fsep+'subsubfolder'+fsep+'subsubnode'+ (i+1).to_s+'.pp'))
     end
     ## feature not implemented - bad puppet style
     1.times do |i|  
-      assert_equal(false,site_builder.depencendy_tree.has_key?(abs_2_manifests+fsep+'sub2node'+ (i+1).to_s+'.pp'))
+      assert_equal(false,site_builder.dependency_tree.has_key?(abs_2_manifests+fsep+'sub2node'+ (i+1).to_s+'.pp'))
     end
   end
     
-  def test_buildModuleTree
+  def test_build_module_tree
     puts "\ntest_buildModuleTree\n---------------\n"
     test_file_system = File.expand_path(File.dirname(__FILE__)) + File::SEPARATOR + "site_builder_fs"
     module_file_system = File.expand_path(File.dirname(__FILE__)) + File::SEPARATOR + "site_builder_fs" + File::SEPARATOR + "modules"
@@ -337,7 +365,7 @@ class SiteBuilderTest < Test::Unit::TestCase
       
     2.times do |i|  
       nodename=abs_manifests+fsep+'node'+ (i+1).to_s+'.pp'      
-      assert_equal(true,site_builder.depencendy_tree.has_key?(nodename))
+      assert_equal(true,site_builder.dependency_tree.has_key?(nodename))
       if expected_condensed_children.has_key?(nodename)
         puts nodename + " condensed found"
         duplicate_set=expected_condensed_children[nodename].clone()

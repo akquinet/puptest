@@ -4,11 +4,11 @@
 require 'util/item'
 
 class SiteBuilder
-  attr_reader :pp_files, :module_files, :depencendy_tree, :condensed_dependency_tree, :module_tree, :item_is_part_of, :unresolved_detail_module_dependencies, :unresolved_detail_node_dependencies
+  attr_reader :pp_files, :module_files, :dependency_tree, :condensed_dependency_tree, :module_tree, :item_is_part_of, :unresolved_detail_module_dependencies, :unresolved_detail_node_dependencies
   def initialize()
     @pp_files = Hash.new
     @module_files = Hash.new
-    @depencendy_tree = Hash.new
+    @dependency_tree = Hash.new
     @condensed_dependency_tree = Hash.new
     @module_tree = Hash.new
     @item_is_part_of = Hash.new
@@ -17,6 +17,7 @@ class SiteBuilder
   end
   
   SITE_PP = 'site.pp'
+  DEFAULT_MODULES_DIR= 'modules'
   
   def build_effective_site_pp(path_to_root_pp,module_path=nil,filename = SITE_PP)
     return build_effective_pp(path_to_root_pp, filename,module_path)
@@ -35,16 +36,17 @@ class SiteBuilder
     if (module_path)
       @module_tree, @item_is_part_of = build_module_tree(module_path,@module_tree)      
     end
-    @depencendy_tree = build_dependency_tree(@pp_files,@depencendy_tree)
-    @condensed_dependency_tree, @unresolved_detail_node_dependencies = translate_detail_dependencies_to_module_dependencies(@depencendy_tree,@condensed_dependency_tree, @item_is_part_of, @unresolved_detail_node_dependencies)
-    return @depencendy_tree, @condensed_dependency_tree, @module_tree
+    @dependency_tree = build_dependency_tree(@pp_files,@dependency_tree)
+    puts "inner: "+@dependency_tree.to_s
+    @condensed_dependency_tree, @unresolved_detail_node_dependencies = translate_detail_dependencies_to_module_dependencies(@dependency_tree,@condensed_dependency_tree, @item_is_part_of, @unresolved_detail_node_dependencies)
+    return @dependency_tree, @condensed_dependency_tree, @module_tree
   end
     
   def to_s
     output = ""
     #@pp_files.each { |key,val| output+=key+" REF BY "+val+"\n" }  
     output += "\n\nDependency Tree:\n"
-    @depencendy_tree.each do |key,val|
+    @dependency_tree.each do |key,val|
        
       output+="--"+key+"\n"
       val.each { |key,child| output +="----"+child.name+" ("+key+"; "+child.item_type+")"+"\n"}
@@ -62,14 +64,68 @@ class SiteBuilder
     return output
   end
   
+  def parse_modulefiles_for_dependency_declarations(tree_to_build,module_root)
+    Dir.foreach(module_root) do |module_dir|
+      abs_dir = module_root + File::SEPARATOR + module_dir
+      if module_dir != '..' && module_dir != '.' && module_dir != nil
+        mfile = abs_dir + File::SEPARATOR + 'Modulefile'
+        if File.exists?(mfile)
+#          puts "\n\nmodulefile "+module_dir             
+          #          modulename = nil
+          dependencies = Set.new
+          File.open(mfile) do |file|
+            file.each_line() do |line|  
+              trimmed_line = line.strip  
+#              puts "line:"+trimmed_line
+              #            match_name= Regexp.new(/^name\s['"][0-9a-zA-Z_\-:.,\s]+['"]/).match(trimmed_line)
+              match_dependency= Regexp.new(/^dependency\s*['"][0-9a-zA-Z_\/-:.,\s]+['"]/).match(trimmed_line)            
+              #            if match_name
+              #              modulename = match_name[0].gsub('"', '').gsub("'", '').gsub('name', '').strip
+              #              split = modulename.split('/')
+              #              if split.size > 1
+              #                modulename = split[1]
+              #              end
+              #            end
+              if match_dependency
+#                puts "match: "+match_dependency[0]
+                dependency_name = match_dependency[0].gsub('"', '').gsub("'", '').gsub('dependency', '').strip
+                split = dependency_name.split('/')
+                if split.size > 1
+                  dependency_name = split[1]
+                end
+#                puts "adding: "+dependency_name
+                dependencies.add(dependency_name)
+              end
+            end   
+          
+            #          if (modulename != nil && modulename != '' && modulename == module_dir && dependencies.size > 0)
+            if (dependencies.size > 0)
+              if tree_to_build[module_dir] == nil
+                tree_to_build[module_dir] = Item.new(Item::MODULE, :plain_name, module_dir)
+#                puts "adding module to tree: "+module_dir
+              end
+              dependencies.each do |dependency|
+                #puts "adding dependency :"+dependency+" to module: "+module_dir
+                tree_to_build[module_dir][dependency] = Item.new(Item::MODULE, :plain_name, dependency)
+              end            
+            end
+          end
+        end
+      end
+    end
+    
+    return tree_to_build
+  end
+  
   private
   
   def build_module_tree(path,tree_to_build)
     # MODULE_ROOT/module/manifests/*
     module_root = path
     if !(path =~/modules$/)      
-      module_root += File::SEPARATOR + "modules"
+      module_root += File::SEPARATOR + DEFAULT_MODULES_DIR
     end
+    puts "module root: "+module_root
     ## get a list of all files of each module
     Dir.foreach(module_root) do |module_dir|
       abs_dir = module_root + File::SEPARATOR + module_dir
@@ -97,7 +153,7 @@ class SiteBuilder
     #    puts "module files end\n"
     
     ## parse each file for dependencies to other classes and modules
-    tree = build_dependency_tree(@module_files,tree_to_build,true,true)
+    tree_to_build = build_dependency_tree(@module_files,tree_to_build,true,true)
     ## remove children/dependencies which are actually contained in the module
     tree_to_build.each do |key,module_item| 
       cloned_items = module_item.clone
@@ -125,38 +181,48 @@ class SiteBuilder
     end
         
     ## translate class/define/include dependencies to module dependencies
-#    tree_to_build.each_value do |module_item| 
-#      detail_dependencies = module_item.clone
-#      module_item.clear
-#      detail_dependencies.each_value do |detail_dependency|  
-#        puts "searching : "+detail_dependency.map_id
-#        dependency = @item_is_part_of[detail_dependency.map_id]
-#        if (dependency)
-#          module_item[dependency.name] = dependency
-#        else 
-#          if (!@unresolved_detail_dependencies[module_item.name])
-#            @unresolved_detail_dependencies[module_item.name] = Hash.new
-#          end
-#          (@unresolved_detail_dependencies[module_item.name])[detail_dependency.map_id] = detail_dependency
-#        end
-#      end
-#    end
+    #    tree_to_build.each_value do |module_item| 
+    #      detail_dependencies = module_item.clone
+    #      module_item.clear
+    #      detail_dependencies.each_value do |detail_dependency|  
+    #        puts "searching : "+detail_dependency.map_id
+    #        dependency = @item_is_part_of[detail_dependency.map_id]
+    #        if (dependency)
+    #          module_item[dependency.name] = dependency
+    #        else 
+    #          if (!@unresolved_detail_dependencies[module_item.name])
+    #            @unresolved_detail_dependencies[module_item.name] = Hash.new
+    #          end
+    #          (@unresolved_detail_dependencies[module_item.name])[detail_dependency.map_id] = detail_dependency
+    #        end
+    #      end
+    #    end
     
     tree_to_build, @unresolved_detail_module_dependencies = translate_detail_dependencies_to_module_dependencies(tree_to_build,tree_to_build,@item_is_part_of,@unresolved_detail_module_dependencies)
+    
+    ## parse librarian-puppet Modulefile if available and add dependencies listed in it
+    tree_to_build = parse_modulefiles_for_dependency_declarations(tree_to_build,module_root)
+    
     return tree_to_build, @item_is_part_of
   end
   
   def translate_detail_dependencies_to_module_dependencies(base_tree,tree_to_build,map,unresolved_detail_dependencies)
+    #    puts "TRANSLATION DICTIONARY:"
+    #    map.each do |key,val|
+    #      puts key.to_s+" ->"+val.name.to_s+" ("+val.item_type.to_s+")"
+    #    end
+    #    puts "-TRANSLATION DICTIONARY"
     base_tree.each do |key,module_item| 
-      puts "ORIGINAL : "+module_item.to_s
+      #      puts "ORIGINAL : "+module_item.to_s
       translated_item = module_item.clone
-      puts "TRANSLATED : "+translated_item.to_s
+      #      puts "TRANSLATED : "+translated_item.to_s
       translated_item.clear
-#      detail_dependencies = module_item.clone
-#      module_item.clear
+      #      detail_dependencies = module_item.clone
+      #      module_item.clear
       module_item.each_value do |detail_dependency|  
-        puts "searching : "+detail_dependency.map_id
         dependency = map[detail_dependency.map_id]
+        #        puts "searching : "+detail_dependency.map_id+"... maps to "+dependency.to_s
+        
         if (dependency)
           translated_item[dependency.name] = dependency
         else 
@@ -250,28 +316,28 @@ class SiteBuilder
         #### parsing files completed
         
         ## duplicate nodes if their name is actually a list of several node selectors
-#        if (current_parent_item != nil && current_parent_item.item_type == Item::NODE)
-#          node_names = current_parent_item.name.split(',')
-#          if node_names.size > 1
-#            current_parent_item.name = node_names[0].strip
-#            for i in 0...node_names.length
-#              clonedItem = current_parent_item.clone
-#              clonedItem.name = node_names[i].strip
-#              add_to_tree_structure(clonedItem,nil,tree_to_build)
-#               current_parent_item.short_names.add(node_names[i])
-#            end
-#          end
-#        end
+        #        if (current_parent_item != nil && current_parent_item.item_type == Item::NODE)
+        #          node_names = current_parent_item.name.split(',')
+        #          if node_names.size > 1
+        #            current_parent_item.name = node_names[0].strip
+        #            for i in 0...node_names.length
+        #              clonedItem = current_parent_item.clone
+        #              clonedItem.name = node_names[i].strip
+        #              add_to_tree_structure(clonedItem,nil,tree_to_build)
+        #               current_parent_item.short_names.add(node_names[i])
+        #            end
+        #          end
+        #        end
       end      
     end
     return tree_to_build
   end
   
   def parsing_line(path_to_file,tree_to_build,current_parent_item,ref_as_parent,depth_zero_is_part_of_parent,depth_counter,trimmed_line)
-    if trimmed_line =~ /^node.*\{.*/ 
+    if trimmed_line =~ /^node\s.*\{.*/ 
       ## parse node name or node name regexp
       if ((depth_counter==0 && depth_zero_is_part_of_parent) || ref_as_parent)
-        raise NotYetSupportedException "nodes can not be part of modules"            
+        raise(NotYetSupportedException,"nodes can not be part of modules")
       end
       match_reg_exp_rule = Regexp.new(/\/.*\//).match(trimmed_line) 
       match_normal_rule = Regexp.new(/["'].*["']/).match(trimmed_line) 
@@ -402,11 +468,11 @@ class SiteBuilder
             include_all_manifests_in_dir_recursively(abs_dir,filename,file_map)
               
           else 
-            raise NotYetSupportedException "wildcard reference just supported at the end of import statements for selection of all directory contents"            
+            raise(NotYetSupportedException,"wildcard reference just supported at the end of import statements for selection of all directory contents")
           end
                
         else
-          raise NotYetSupportedException "wildcard reference just supported at the end of import statements"
+          raise(NotYetSupportedException,"wildcard reference just supported at the end of import statements")
         end
             
       else          

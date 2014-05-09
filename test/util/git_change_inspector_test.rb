@@ -9,11 +9,13 @@ require 'test/unit'
 require 'util/git_change_inspector'
 require 'set'
 require 'test_helper'
+require 'change_simulator'
 
 class GitChangeInspectorTest < Test::Unit::TestCase
   FSEP = File::SEPARATOR
   
   include TestHelper
+  include ChangeSimulator
   
   def test_ensure_all_required_options_are_set
     inspector = GitChangeInspector.new
@@ -68,8 +70,8 @@ class GitChangeInspectorTest < Test::Unit::TestCase
   def test_promote_changes
     base_repo = File.dirname(__FILE__) + FSEP + 'change_inspector_repo'
     inspector = GitChangeInspector.new
-    remote_repo = inspector.clone_repo(base_repo, FSEP+'tmp', 'test_promote_changes_remote',true)
-    scm_repo = inspector.clone_repo(remote_repo.dir.to_s, FSEP+'tmp', 'test_promote_changes')
+    remote_repo = inspector.clone_repo(base_repo, FSEP+'tmp', 'test_promote_changes_remote',true)        
+    scm_repo = inspector.clone_repo(remote_repo.repo.to_s, FSEP+'tmp', 'test_promote_changes')
     
     ## switching to the master branch initially ensures that origin/master is locally accessible 
     ## for lib.checkout_file_from_branch command used during orphaninit
@@ -94,9 +96,11 @@ class GitChangeInspectorTest < Test::Unit::TestCase
     assert_equal(change_set.promoted_commit,remote_repo.tags[0].objectish)
     scm_repo.checkout(scm_repo.branch(GitChangeInspector::DEFAULT_CHANGESETS_BRANCH))    
     assert(File.exist?(scm_repo.dir.to_s+FSEP+ GitChangeInspector::DEFAULT_CHANGESET_FILENAME))
-    remote_repo.checkout(scm_repo.branch(GitChangeInspector::DEFAULT_CHANGESETS_BRANCH))    
-    assert(File.exist?(remote_repo.dir.to_s+FSEP+ GitChangeInspector::DEFAULT_CHANGESET_FILENAME))
+    check_repo = inspector.clone_repo(remote_repo.repo.to_s, FSEP+'tmp', 'test_promote_changes_check')
+    check_repo.checkout(scm_repo.branch(GitChangeInspector::DEFAULT_CHANGESETS_BRANCH))    
+    assert(File.exist?(check_repo.dir.to_s+FSEP+ GitChangeInspector::DEFAULT_CHANGESET_FILENAME))
     assert(inspector.cleanup(scm_repo.dir.to_s))
+    assert(inspector.cleanup(check_repo.dir.to_s))
     assert(inspector.cleanup(remote_repo.dir.to_s))
   end
   
@@ -147,11 +151,11 @@ class GitChangeInspectorTest < Test::Unit::TestCase
       nil,
       {:dev_branch => 'test_analyse_files_for_module_changes_initial'}
     )
-    expected_module_changes = ['puppetlabs/stdlib', 'maestrodev/wget', 'akquinet/unzip',
-      'akquinet/archmngt', 'puppetlabs/java', 'saheba/openjdk_6_jre',
-      'akquinet/maven', 'akquinet/jboss', 'akquinet/postgresql',
-      'saheba/phantomjs', 'example42/apache', 'example42/puppi', 'akquinet/apache_addfiles',
-      'akquinet/apache_crowd', 'akquinet/jpackage_repo', 'maestrodev/jetty'
+    expected_module_changes = ['stdlib', 'wget', 'unzip',
+      'archmngt', 'java', 'openjdk_6_jre',
+      'maven', 'jboss', 'postgresql',
+      'phantomjs', 'apache', 'puppi', 'apache_addfiles',
+      'apache_crowd', 'jpackage_repo', 'jetty'
     ]
 #    puts changed_modules_hash.keys.to_s
     
@@ -164,19 +168,19 @@ class GitChangeInspectorTest < Test::Unit::TestCase
       'test_analyse_files_for_module_changes_initial',
       {:dev_branch => 'test_analyse_files_for_module_changes_non_initial'}
     )
-    ## added: 'saheba/netrc'
-    ## changed: 'puppetlabs/java', 'akquinet/maven'
-    ## updated (changed): 'maestrodev/wget'
-    ## removed: 'akquinet/apache_addfiles', 'akquinet/apache_crowd',
-    ##          'example42/apache', 'saheba/phantomjs'
-    ## indirectly removed: 'example42/puppi'
+    ## added: 'netrc'
+    ## changed: 'java', 'maven'
+    ## updated (changed): 'wget'
+    ## removed: 'apache_addfiles', 'apache_crowd',
+    ##          'apache', 'phantomjs'
+    ## indirectly removed: 'puppi'
     ## (removed modules are not relevant for determining node definitions which need to be tested)
     puts "non-initial --------"
-    expected_module_changes = ['saheba/netrc', 'puppetlabs/java', 
-      'akquinet/maven', 'maestrodev/wget'
+    expected_module_changes = ['netrc', 'java', 
+      'maven', 'wget'
     ]
-    expected_modules_stable = ['puppetlabs/stdlib', 'akquinet/unzip',
-      'akquinet/archmngt', 'saheba/openjdk_6_jre', 'akquinet/jboss', 'akquinet/postgresql']
+    expected_modules_stable = ['stdlib', 'unzip',
+      'archmngt', 'openjdk_6_jre', 'jboss', 'postgresql']
     run_investigate_module_changes(changed_modules_hash,expected_module_changes,expected_modules_stable)
     assert_equal(expected_module_changes.size,changed_modules_hash.size)
     
@@ -247,9 +251,9 @@ class GitChangeInspectorTest < Test::Unit::TestCase
     assert_not_nil(change_set.nodes[nkey])
     assert_equal('node1, node1.local.com', change_set.nodes[nkey].name)
     puts change_set.modules.to_s    
-    expected_module_changes = ['akquinet/unzip','akquinet/maven',
-      'akquinet/jboss','akquinet/postgresql','akquinet/archmngt',
-      'maestrodev/wget','puppetlabs/java','puppetlabs/stdlib','saheba/openjdk_6_jre'
+    expected_module_changes = ['unzip','maven',
+      'jboss','postgresql','archmngt',
+      'wget','java','stdlib','openjdk_6_jre'
       ]
     assert_equal(expected_module_changes.size,change_set.modules.size)    
     run_investigate_module_changes(change_set.modules,expected_module_changes)
@@ -269,8 +273,8 @@ class GitChangeInspectorTest < Test::Unit::TestCase
     assert_equal(expected_node_changes.size,change_set.nodes.size)    
     run_investigate_node_changes(change_set.nodes,expected_node_changes)
     
-    expected_module_changes = ['saheba/netrc','akquinet/archmngt',
-      'akquinet/postgresql','saheba/phantomjs'
+    expected_module_changes = ['netrc','archmngt',
+      'postgresql','phantomjs'
       ]
     assert_equal(expected_module_changes.size,change_set.modules.size)    
     run_investigate_module_changes(change_set.modules,expected_module_changes)
@@ -294,9 +298,9 @@ class GitChangeInspectorTest < Test::Unit::TestCase
     run_investigate_node_changes(change_set.nodes,expected_node_changes)
     
     
-    expected_module_changes = ['saheba/netrc','example42/apache',
-      'akquinet/apache_addfiles','akquinet/apache_crowd','akquinet/jpackage_repo',
-      'maestrodev/jetty','maestrodev/sonar','maestrodev/maven','example42/puppi'
+    expected_module_changes = ['netrc','apache',
+      'apache_addfiles','apache_crowd','jpackage_repo',
+      'jetty','sonar','maven','puppi'
       ]
     assert_equal(expected_module_changes.size,change_set.modules.size)    
     run_investigate_module_changes(change_set.modules,expected_module_changes)
@@ -311,7 +315,7 @@ class GitChangeInspectorTest < Test::Unit::TestCase
     change_set = inspector.investigate_repo(scm_repo, opts)
     
     expected_module_changes = [
-      ##'saheba/netrc','maestrodev/sonar',
+      ##'netrc','sonar',
       ## deleted modules do not affect the node definitions anymore
       ## so far the framework does not test for leftover module usages
       ## which one forgot to remove while removing the module itself
@@ -340,7 +344,7 @@ class GitChangeInspectorTest < Test::Unit::TestCase
 #    
 #    expected_module_changes = [
 #      ## pgsql: different git branch, wget: updated forge version
-#      'akquinet/postgresql','maestrodev/wget'
+#      'postgresql','wget'
 #      ## deleted modules do not affect the node definitions anymore
 #      ## so far the framework does not test for leftover module usages
 #      ## which one forgot to remove while removing the module itself
@@ -361,22 +365,6 @@ class GitChangeInspectorTest < Test::Unit::TestCase
 #    run_investigate_node_changes(change_set.nodes,expected_node_changes)
   end
   
-  def apply_prepared_changes(inspector,change_set,scm_repo,base_repo,src_repo,commit_hash,opts)
-    ## there is no cherry-pick support in ruby-git yet
-    ## so we use this rather complicated 
-    ## "checkout master commit"-"copy files to branch"-"commit changes in branch"-workflow
-    base_repo.checkout('master')    
-    inspector.promote_changes(scm_repo, change_set, opts)
-    src_repo.checkout(commit_hash)
-    scm_repo.checkout(scm_repo.branch(opts[:dev_branch]))
-    scmdir = scm_repo.dir.to_s+FSEP
-    srcdir = src_repo.dir.to_s+FSEP
-    FileUtils.rm_rf([scmdir+'Puppetfile',scmdir+'Puppetfile.lock',scmdir+'manifests'])
-    FileUtils.cp_r([srcdir+'Puppetfile',srcdir+'Puppetfile.lock',srcdir+'manifests'], scmdir)
-    scm_repo.add(:all=>true)
-    scm_repo.commit_all('squashed master '+commit_hash)
-  end
-  
   #  def test_investigateRepo    
   #    fsep = File::SEPARATOR
   #    testRootDir='/tmp'
@@ -388,8 +376,8 @@ class GitChangeInspectorTest < Test::Unit::TestCase
   #    expectedNodeChanges = Set.new ['nodes'+fsep+'node2','nodes2'+fsep+'sub2node1','nodes'+fsep+'subfolder'+fsep+'subsubfolder'+fsep+'subsubnode1','nodes'+fsep+'subfolder'+fsep+'subnode1','nodes'+fsep+'subfolder'+fsep+'subnode2','nodes'+fsep+'node4','nodes'+fsep+'node5' ]
   #    notChangedNodes = Set.new ['nodes'+fsep+'node3','nodes'+fsep+'node1','nodes'+fsep+'subfolder'+fsep+'subnode3']
   #    changeSet = inspector.investigateRepo(repoURL, testRootDir, 'promoted', 'master')
-  #    expectedModuleChanges= Set.new ['saheba/phantomjs','akquinet/archmngt','akquinet/postgresql','example42/apache','akquinet/apache_crowd','akquinet/apache_addfiles','maestrodev/jetty','akquinet/jpackage_repo']
-  #    notChangedModules = Set.new ['akquinet/unzip','akquinet/jboss','akquinet/maven','saheba/openjdk_6_jre']
+  #    expectedModuleChanges= Set.new ['phantomjs','archmngt','postgresql','apache','apache_crowd','apache_addfiles','jetty','jpackage_repo']
+  #    notChangedModules = Set.new ['unzip','jboss','maven','openjdk_6_jre']
   #    run_investigateNodeChanges(changeSet,expectedNodeChanges,notChangedNodes,manifestsPath)
   #    run_investigateModuleChanges(changeSet,expectedModuleChanges,notChangedModules)
   #    
@@ -398,8 +386,8 @@ class GitChangeInspectorTest < Test::Unit::TestCase
   #    # the change set MUST NOT contain node3 because this node will not be tested anymore, because it was deleted from the configuration, but NOT added to it.
   #    expectedNodeChanges= Set.new ['nodes'+fsep+'subfolder'+fsep+'subnode1','nodes'+fsep+'subfolder'+fsep+'subnode2','nodes'+fsep+'node4','nodes'+fsep+'node5' ]
   #    notChangedNodes = Set.new ['nodes'+fsep+'node2','nodes2'+fsep+'sub2node1','nodes'+fsep+'node1','nodes'+fsep+'node3','nodes'+fsep+'subfolder'+fsep+'subnode3']
-  #    expectedModuleChanges= Set.new ['example42/apache','akquinet/apache_crowd','akquinet/apache_addfiles','maestrodev/jetty','akquinet/jpackage_repo']
-  #    notChangedModules = Set.new ['akquinet/unzip','akquinet/jboss','akquinet/maven','saheba/openjdk_6_jre','akquinet/archmngt','saheba/phantomjs','akquinet/postgresql']
+  #    expectedModuleChanges= Set.new ['apache','apache_crowd','apache_addfiles','jetty','jpackage_repo']
+  #    notChangedModules = Set.new ['unzip','jboss','maven','openjdk_6_jre','archmngt','phantomjs','postgresql']
   #    changeSet = inspector.investigateRepo(repoURL, testRootDir, 'promoted2', 'master')
   #    run_investigateNodeChanges(changeSet,expectedNodeChanges,notChangedNodes,manifestsPath)
   #    run_investigateModuleChanges(changeSet,expectedModuleChanges,notChangedModules)

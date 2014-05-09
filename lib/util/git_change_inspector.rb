@@ -13,9 +13,7 @@ require 'util/git_repo_manager'
 
 class GitChangeInspector
   include GitRepoManager
-  
-  attr_reader :repo_destination
-  
+    
   def initialize
     
   end
@@ -53,7 +51,9 @@ class GitChangeInspector
   
   def promote_changes(scm_repo,change_set,opts={})
     opts = ensure_all_required_options_are_set(opts)
-    scm_repo.branch(opts[:change_set_branch]).checkout
+    orphan_opts={:orphan=>true,:orphaninit=>'.orphan_init'}
+    switch_to_orphan_branch(scm_repo,opts[:change_set_branch],orphan_opts)
+    
     abs_repo_dir = scm_repo.dir.to_s
     abs_change_set_file = scm_repo.dir.to_s + File::SEPARATOR + opts[:change_set_filename]
     
@@ -82,15 +82,17 @@ class GitChangeInspector
       puts "rescued failed tag deletion"
     end
     scm_repo.add_tag(opts[:promoted_ref])
-    scm_repo.push('origin',opts[:dev_branch],{:tags => true})
-    scm_repo.push('origin',opts[:change_set_branch],{:tags => true})    
-    
+    puts "pushing ..."
+    puts scm_repo.push('origin',opts[:dev_branch],{:tags => true})
+    puts scm_repo.push('origin',opts[:change_set_branch],{:tags => true})    
+    puts "... pushing"
     return nil
   end
   
   ## ## get the puppetmaster repository with
   ## opts[:destination_dir] = DEFAULT_DESTINATION_DIR if opts[:destination_dir] == nil    
-  ## scm_repo = cloneRepo(repo_url,opts[:destination_dir])
+  ## scm_repo = clone_repo(repo_url,opts[:destination_dir])
+  # investigate repo returns a change set containing all directly changed nodes and modules
   def investigate_repo(scm_repo,opts={})
     ## TODO: test all (including submethods)
     opts = ensure_all_required_options_are_set(opts)
@@ -153,10 +155,12 @@ class GitChangeInspector
     end
     orphan_opts[:orphan] = true if orphan_opts[:orphan] == nil
     orphan_opts[:orphaninit] = '.orphan_init' if orphan_opts[:orphaninit] == nil
-    
-    if (!scm_repo.branches['origin/'+branch_name])
+        
+    if (!scm_repo.branches['origin/'+branch_name] && !scm_repo.branches[branch_name])
       #scm_repo.branch(branch_name).checkout(orphan_opts)
       scm_repo.checkout(scm_repo.branch(branch_name),orphan_opts)
+    else
+      scm_repo.checkout(scm_repo.branch(branch_name))
     end 
     return nil
   end
@@ -238,28 +242,33 @@ class GitChangeInspector
       # shaApp = item.source.is_a?(Librarian::Puppet::Source::Git) ? item.source.sha.to_s+" | " : ''
       # verApp = item.version.to_s+" | "
       # fsource = Librarian::Dependency::Requirement.new
+      short_name = item.name
+      split = short_name.split('/')
+      if split.size > 1
+        short_name = split[1]
+      end
       last_promoted_item = modules_in_last_promoted_state[item.name]
       ## modules_in_last_promoted_state will be empty if the framework is initially used 
       # (see comments around line 145)
       if last_promoted_item == nil        
-        changed_modules[item.name] = Item.new(Item::MODULE,:plain_name,item.name)
+        changed_modules[short_name] = Item.new(Item::MODULE,:plain_name,short_name)
       else
         if item.source.is_a?(Librarian::Puppet::Source::Git)
           if last_promoted_item.source.is_a?(Librarian::Puppet::Source::Git)
             if item.source.sha.to_s != last_promoted_item.source.sha.to_s || item.version.to_s != last_promoted_item.version.to_s
-              changed_modules[item.name] = Item.new(Item::MODULE,:plain_name,item.name)
+              changed_modules[short_name] = Item.new(Item::MODULE,:plain_name,short_name)
             end
           else
-            changed_modules[item.name] = Item.new(Item::MODULE,:plain_name,item.name)
+            changed_modules[short_name] = Item.new(Item::MODULE,:plain_name,short_name)
           end
         else
           if item.source.is_a?(Librarian::Puppet::Source::Forge)
             if last_promoted_item.source.is_a?(Librarian::Puppet::Source::Forge)
               if item.version.to_s != last_promoted_item.version.to_s
-                changed_modules[item.name] = Item.new(Item::MODULE,:plain_name,item.name)
+                changed_modules[short_name] = Item.new(Item::MODULE,:plain_name,short_name)
               end
             else
-              changed_modules[item.name] = Item.new(Item::MODULE,:plain_name,item.name)
+              changed_modules[short_name] = Item.new(Item::MODULE,:plain_name,short_name)
             end
           else
             raise(NotYetSupportedException,"so far only forge and git librarian sources are supported")
