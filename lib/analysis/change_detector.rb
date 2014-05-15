@@ -8,6 +8,8 @@ require 'util/module_initializer'
 require 'util/site_builder'
 
 class ChangeDetector
+  attr_reader :scm_change_inspector, :scm_repo
+  
   def initialize
     @scm_change_inspector = GitChangeInspector.new()
     @site_builder = SiteBuilder.new()    
@@ -26,9 +28,9 @@ class ChangeDetector
   
   def detect_changes(repo_url, opts)
     #tested by GitChangeInspectorTest.test_clone_repo
-    scm_repo=@scm_change_inspector.clone_repo(repo_url, opts[:destination_dir],opts[:repo_name_in_destination])
+    @scm_repo=@scm_change_inspector.clone_repo(repo_url, opts[:destination_dir],opts[:repo_name_in_destination])
     #tested by GitChangeInspectorTest.test_investigate_repository
-    change_set = @scm_change_inspector.investigate_repo(scm_repo, opts)
+    change_set = @scm_change_inspector.investigate_repo(@scm_repo, opts)
     # investigate repo returns a change set containing all directly changed nodes and modules
     
     # because investigate repo returns a change set containing ONLY directly 
@@ -39,12 +41,12 @@ class ChangeDetector
     # change_set.modules contains all directly changed modules at this point.
     
     # building the module tree
-    module_initializer = ModuleInitializer.new(scm_repo.dir.to_s)
+    module_initializer = ModuleInitializer.new(@scm_repo.dir.to_s)
     #tested by ModuleInitializerTest.test_install_modules
     #preparation step for "build_effective_site_pp", which parses through the modules directory
     module_initializer.install_modules()
     opts = ensure_all_required_options_are_set(opts)    
-    abs_path_to_root_pp = scm_repo.dir.to_s + File::SEPARATOR + opts[:path_to_root_pp]
+    abs_path_to_root_pp = @scm_repo.dir.to_s + File::SEPARATOR + opts[:path_to_root_pp]
     dependency_tree, condensed_dependency_tree, module_tree = @site_builder.build_effective_site_pp(abs_path_to_root_pp,scm_repo.dir.to_s+File::SEPARATOR+opts[:modules_dir],opts[:root_pp_file_name])
     
     ## invert the dependency graph "module_tree" [key: module.name, value: dependencies hash map]
@@ -62,11 +64,12 @@ class ChangeDetector
       if item.item_type == Item::NODE
         item.each_value do |dependency|
           if (dependency.item_type == Item::MODULE && all_change_affected_modules.include?(dependency.name))
-            change_set.nodes[item.name] = item
+            change_set.nodes[itemKey] = item
           end
         end
       end
     end
+    
     return change_set
   end
   
