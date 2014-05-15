@@ -17,7 +17,13 @@ class ScriptRunner
     @pool_manager.pool.size.times do
       threads << run_next_script
     end
-    threads.each { |thread| thread.join }
+    threads.each do |thread| 
+      if (thread != nil) 
+        thread.join 
+      end
+    end
+    
+    return @scripts
   end
   
   private
