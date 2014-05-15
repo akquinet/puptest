@@ -195,9 +195,9 @@ class GitChangeInspector
               elsif match_normal_rule
                 node_name = match_normal_rule[0].gsub('"','').gsub("'","")
                 node_name_type = :plain_name
-              end
+              end              
               node_item = Item.new(Item::NODE,node_name_type,node_name)
-              #puts "added node to change set: "+abs_file
+              puts "added node to change set: "+abs_file+" with name "+node_name
               change_set.nodes[abs_file] = node_item
             end
           
