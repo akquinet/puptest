@@ -56,7 +56,7 @@ class PoolManager
   end
   
   def stop_pool(opts=self.opts)    
-    result = stop_vms(opts,get_all_pool_vms(opts))
+    result = stop_vms(opts,get_running_pool_vms(opts))
     @pool = Set.new
     return result
   end
@@ -212,7 +212,15 @@ class PoolManager
   
   def get_vm_ssh_connection_string(vm,opts=self.opts)
     ip = get_ssh_connection_ip_of_vm(vm,opts)
-    return 'ssh -o StrictHostKeyChecking=no -o HashKnownHosts=no -i '+opts[:pool_vm_identity_file]+' '+opts[:pool_vm_login]+'@'+ip
+    abs_identity_file=opts[:pool_vm_identity_file]
+    if !File.exists?(abs_identity_file)
+      rel_identity_file = File.join(File.dirname(__FILE__),opts[:pool_vm_identity_file])
+      if !File.exists?(rel_identity_file)
+        raise(ConnectionOrExecuteException,'pool_vm_identity_file could not be found in: '+abs_identity_file+' or in: '+rel_identity_file)
+      end
+      abs_identity_file = rel_identity_file
+    end
+    return 'ssh -o StrictHostKeyChecking=no -o HashKnownHosts=no -i '+abs_identity_file+' '+opts[:pool_vm_login]+'@'+ip
   end
   
   def get_ssh_connection_ip_of_vm(vm,opts=self.opts)
@@ -413,7 +421,7 @@ class PoolManager
     
     delete = run_command(virsh_connection+' '+cmd+' '+vm_name)
     if delete[1] != 0
-      raise(DeleteException,'VM '+vm_name+' command failed:'+cmd)
+      raise(DeleteException,'VM '+vm_name+' command failed: '+cmd+"\n"+delete[0])
     end
     puts delete[0]
     
