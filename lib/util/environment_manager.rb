@@ -15,8 +15,8 @@ class EnvironmentManager
   attr_reader :repo_url, :pp_conf_file, :puptest_env
   
   DEFAULT_PUPTEST_ENV_NAME='puptest'
-  DEFAULT_PP_CONF_DIR=File.join('etc','puppet')
-  DEFAULT_PP_CONF_FILE=File.join('etc','puppet','puppet.conf')
+  DEFAULT_PP_CONF_DIR=File.join('/etc','puppet')
+  DEFAULT_PP_CONF_FILE=File.join('/etc','puppet','puppet.conf')
   def initialize(pp_conf_file=DEFAULT_PP_CONF_FILE,
       puptest_env=DEFAULT_PUPTEST_ENV_NAME, repo_url)
     @pp_conf_file = pp_conf_file
@@ -42,8 +42,13 @@ class EnvironmentManager
     ## delete environment files
     cleanup(puptest_env_path)
     ## add environment files: fresh repo clone
-    clone_repo(repo_url, get_gen_env_path(puppetmaster_opts), puptest_env)
-    ## initialize modules
+    FileUtils.mkdir_p(get_gen_env_path(puppetmaster_opts))
+    repo = clone_repo(repo_url, get_gen_env_path(puppetmaster_opts), puptest_env)
+    ## initialize modules    
+    if !File.exists?(puptest_env_path) || !File.directory?(puptest_env_path)
+      raise(StandardError,'environment setup failed.')
+    end
+    
     initialize_modules(puptest_env_path)
     ## restart puppetmaster
     return restart_puppetmaster()
@@ -116,7 +121,8 @@ class EnvironmentManager
   end
   
   def restart_puppetmaster
-    return run_command('/etc/init.d/puppetmaster restart')
+    ssh_connection_string = 'ssh -o StrictHostKeyChecking=no -o HashKnownHosts=no '+'root'+'@localhost'
+    return run_command(ssh_connection_string+' /etc/init.d/puppetmaster restart')
   end
   
   def reload_conf(pp_conf_file, puptest_env)
