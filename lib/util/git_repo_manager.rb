@@ -5,9 +5,9 @@
 require 'git'
 
 module GitRepoManager
-  def initialize
-    
-  end
+#  def initialize
+#    
+#  end
   
   def clone_repo(repo_url, destination_dir, repo_name=nil,bare=false)    
     if (repo_name == nil)

@@ -37,7 +37,7 @@ class SiteBuilder
       @module_tree, @item_is_part_of = build_module_tree(module_path,@module_tree)      
     end
     @dependency_tree = build_dependency_tree(@pp_files,@dependency_tree)
-    puts "inner: "+@dependency_tree.to_s
+#    puts "inner: "+@dependency_tree.to_s
     @condensed_dependency_tree, @unresolved_detail_node_dependencies = translate_detail_dependencies_to_module_dependencies(@dependency_tree,@condensed_dependency_tree, @item_is_part_of, @unresolved_detail_node_dependencies)
     return @dependency_tree, @condensed_dependency_tree, @module_tree
   end
