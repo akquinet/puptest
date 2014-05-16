@@ -48,13 +48,23 @@ class Puptest
     ## and initialize modules in puptest env
     environment_manager = EnvironmentManager.new(pp_config_file, config_reader.opts[:puptest_env], config_reader.opts[:repo_url])
     environment_manager.ensure_puptest_env_exists()
-    ## 5: server is restarted by environment manager if env was successfully initialized
+    
+    ## 4-result: server is restarted by environment manager if env was successfully initialized
 #    run_command('cp -rfL /etc/puppet/ /tmp/before_pool_start')
-    ## 6: start vm pool
+    ## 5: compile a small test script for each change
+    scripts = compile_test_scripts(change_set.nodes,config_reader.opts)
+    
+    ## 6: delete certs of tests nodes from master
+    certnames = Set.new
+    scripts.each do |script|
+      certnames.add(script.name)
+    end
+    environment_manager.cleanup_puppetmaster_certs(certnames,pp_config_file)
+    
+    ## 7: start vm pool
     pool_manager = PoolManager.new(config_reader.opts)
     pool_manager.start_pool()
-    ## 7: compile a small test script for each change
-    scripts = compile_test_scripts(change_set.nodes,config_reader.opts)
+        
     ## 8: run each script in a fresh vm
     script_runner = ScriptRunner.new(scripts,pool_manager)
     scripts = script_runner.run()
@@ -83,7 +93,7 @@ class Puptest
     
     FileUtils.rm_rf(change_detector.scm_repo.dir.to_s)
     
-    return overall_statuscode, failed_scripts
+    return overall_statuscode, failed_scripts, scripts
   end
   
   private 
@@ -94,12 +104,14 @@ class Puptest
     problem_indicators = ['ERROR','error','Error','Exception']
     scripts.each do |script|
       script.statuscodes.each do |statuscode|
-        if statuscode != 0
+        puts "script "+script.name+" statuscode "+statuscode.to_s
+        if statuscode != 0 && statuscode != 2
           overall_statuscode = 1
           failed_scripts[script.name] = script
         end
       end
       script.results.each do |result|
+        puts "script "+script.name+" result "+result
         problem_indicators.each do |problem_indicator|
           if result =~ /#{problem_indicator}/
             overall_statuscode = 1
@@ -125,8 +137,8 @@ class Puptest
       end
       server = opts[:puppetmaster_server]
       commands[0] = 'hostname '+hostname
-      commands[1] = 'puppet agent --server='+server+' --environment='+opts[:puptest_env]+' --verbose --onetime --no-daemonize'      
-      scripts << Script.new(changed_node.name, commands)
+      commands[1] = 'puppet agent --server='+server+' --environment='+opts[:puptest_env]+' --verbose --onetime --no-daemonize --detailed-exitcodes'      
+      scripts << Script.new(hostname, commands)
     end
     return scripts
   end

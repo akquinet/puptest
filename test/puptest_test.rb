@@ -16,6 +16,10 @@ class PuptestTest < Test::Unit::TestCase
   def setup
 #    @base_dest=File.join('/tmp','puptest_base')
 #    @prod_dest=File.join('/tmp','puptest_puppet_prod')
+    assert_equal(true,cleanup(File.join('/tmp','puptest_base')))
+    assert_equal(true,cleanup(File.join('/tmp','puptest_puppet_prod')))
+    assert_equal(true,cleanup(File.join('/tmp','puptest_changing')))
+    
     @puptest_base = clone_repo('https://github.com/saheba/puppetmaster-sample.git','/tmp','puptest_base',true)
     @puppet_prod = clone_repo(@puptest_base.repo.to_s,'/tmp','puptest_puppet_prod')
     ## puppet_prod repo is not changed during tests, it is just used to run a fresh, lean configured puppetmaster
@@ -37,11 +41,52 @@ class PuptestTest < Test::Unit::TestCase
     ## pp_config_file does not contain confdir variable
     ## -> confdir is DEFAULT = /etc/puppet which we changed into a symbolic 
     ##    link pointing to our @puppet_prod.dir.to_s which is /tmp/puptest_puppet_prod
+    
     copy_commit_push('change_0')
-    status, failed_scripts = puptest.run(config_file, pp_config_file)
+    status, failed_scripts, scripts = puptest.run(config_file, pp_config_file)
+    # statuscode 2 in script.statuscodes array simply means that puppet has successfully recognized changes in the puppet catalog
+    assert_equal(2,scripts.size)
+    assert_equal(0,scripts[0].statuscodes[0])
+    assert_equal(true,scripts[0].statuscodes[1] == 0 || scripts[0].statuscodes[1] == 2)
+    assert_equal(0,scripts[1].statuscodes[0])
+    assert_equal(true,scripts[1].statuscodes[1] == 0 || scripts[1].statuscodes[1] == 2)
+    assert_equal(0,failed_scripts.size)
+    assert_equal(0,status)
+    
+    copy_commit_push('change_1')
 #    puts "press return to finish test run"
 #    a = gets.chomp
+    status, failed_scripts, scripts = puptest.run(config_file, pp_config_file)
+    assert_equal(1,scripts.size)
+    assert_equal(0,scripts[0].statuscodes[0])
+    ## statuscode 6 in script.statuscodes array means there were both changes and failures
+    assert_equal(true,scripts[0].statuscodes[1] != 0 && scripts[0].statuscodes[1] != 2)
+    assert_equal(1,failed_scripts.size)
+    assert_equal(1,status)
+    
+#    puts "TEST RESULT: \n"+scripts[0].results[1].to_s
+    
+    copy_commit_push('change_2')
+#     puts "press return to finish test run"
+#    a = gets.chomp
+    status, failed_scripts, scripts = puptest.run(config_file, pp_config_file)
     assert_equal(0,status)
+    assert_equal(0,failed_scripts.size)
+    assert_equal(2,scripts.size)
+    assert_equal(0,scripts[0].statuscodes[0])
+    assert_equal(true,scripts[0].statuscodes[1] == 0 || scripts[0].statuscodes[1] == 2)
+    assert_equal(0,scripts[1].statuscodes[0])
+    assert_equal(true,scripts[1].statuscodes[1] == 0 || scripts[1].statuscodes[1] == 2) 
+    
+    copy_commit_push('change_3')
+    status, failed_scripts, scripts = puptest.run(config_file, pp_config_file)
+    assert_equal(0,status)
+    assert_equal(0,failed_scripts.size)
+    assert_equal(5,scripts.size)
+    5.times do |i|
+      assert_equal(0,scripts[i].statuscodes[0])
+      assert_equal(true,scripts[i].statuscodes[1] == 0 || scripts[i].statuscodes[1] == 2)      
+    end    
   end
   
   def copy_commit_push(changes_dir,branch='master')
