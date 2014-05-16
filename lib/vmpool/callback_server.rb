@@ -8,6 +8,7 @@ class CallbackServer
   def wait_for_callback(opts, &block)
     @server=TCPServer.new(opts[:callback_server_ip],opts[:callback_server_port])
     server_thread = Thread.new do
+        puts Thread.current.to_s+" :: callback server is listening"
         client = @server.accept    # Wait for a client to connect
         addr = client.addr
         yield(client.gets)
