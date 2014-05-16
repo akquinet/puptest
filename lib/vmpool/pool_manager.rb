@@ -83,6 +83,7 @@ class PoolManager
       pool, vm = revert_vm(pool,vm,opts)
       ## revert_vm does not necessarily add vm back to pool
       pool.add(vm)
+      ensure_vms_are_running(opts,[vm])
     else
       # TODO delete vm pysically
       delete_vm(opts,vm)
@@ -111,7 +112,7 @@ class PoolManager
     
     ## adjust pool to defined pool size
     break_condition = all_pool_vms.size - opts[:pool_size]
-    
+    puts Thread.current.to_s+" :: break_condition :"+break_condition.to_s
     if break_condition != 0
       pool_change_type = break_condition > 0 ? :reduce : :extend
       break_condition = -break_condition if break_condition < 0
@@ -194,7 +195,7 @@ class PoolManager
   
   def get_ip_mac_map_of_host_interface(opts)
     ssh_connection = get_ssh_connection_string(opts)
-    entry_list = run_command(ssh_connection+' "cat '+opts[:vm_host_mac_ip_map_file]+'" | grep '+opts[:vm_host_interface])
+    entry_list = run_command(ssh_connection+' grep '+opts[:vm_host_interface]+' '+opts[:vm_host_mac_ip_map_file])
     plain_entries = entry_list[0].split(/\n/)
     
     mac_ip_map = Hash.new
@@ -203,7 +204,7 @@ class PoolManager
       mac_entry = regexp_match_mac(entry_line)
       if ip_entry && mac_entry
         ## last occurrence wins (i.e. overwrites previous occurrences)
-        mac_ip_map[mac_entry[0]] = ip_entry[0]
+        mac_ip_map[mac_entry[0]] = ip_entry[0]        
       end
     end
     
@@ -212,6 +213,9 @@ class PoolManager
   
   def get_vm_ssh_connection_string(vm,opts=self.opts)
     ip = get_ssh_connection_ip_of_vm(vm,opts)
+    if ip == nil
+        raise(ConnectionOrExecuteException,Thread.current.to_s+' ::ip for vm '+vm+' could not be determined.')
+    end
     abs_identity_file=opts[:pool_vm_identity_file]
     if !File.exists?(abs_identity_file)
       rel_identity_file = File.join(File.dirname(__FILE__),opts[:pool_vm_identity_file])
@@ -225,7 +229,9 @@ class PoolManager
   
   def get_ssh_connection_ip_of_vm(vm,opts=self.opts)
     mac_ip_map = get_ip_mac_map_of_host_interface(opts)
-    
+    mac_ip_map.each do |mac,ip|
+#      puts Thread.current.to_s+" :: found mac -> ip relation: "+mac.to_s+' -> '+ip.to_s
+    end
     ## determine mac address of vm
     virsh_connection = get_virsh_connection_string(opts)    
     domiflist,statuscode = run_command(virsh_connection+' domiflist '+vm)
@@ -239,6 +245,13 @@ class PoolManager
       network_match = regexp.match(line)            
       if network_match
         mac_address = regexp_match_mac(line)
+        if (mac_address)
+          ip = 'nil'
+          if mac_ip_map[mac_address[0]]
+            ip = mac_ip_map[mac_address[0]]
+          end
+          puts Thread.current.to_s+" :: found mac address "+mac_address[0]+" for vm "+vm+' -> '+ip
+        end
          if (mac_address && mac_ip_map[mac_address[0]])
           return mac_ip_map[mac_address[0]]
         end
@@ -281,7 +294,7 @@ class PoolManager
     
     if base_vm_exists[1] != 0
       raise(PoolStartException,'Base VM '+opts[:base_vm]+' does not exist on host '+
-          opts[:vm_host_url]+'/'+opts[:vm_level]+'. Please check your configuration.')
+          opts[:vm_host_url]+'/'+opts[:vm_level]+'. Please check your configuration.\n'+base_vm_exists[0].to_s)
     end
   end
   
@@ -371,22 +384,32 @@ class PoolManager
             start_vm = run_command(virsh_connection+' resume '+vm)
           else
             start_vm = run_command(virsh_connection+' start '+vm)
-            puts "trying to start callback server "+opts[:callback_server_ip]+':'+opts[:callback_server_port].to_s
+            puts Thread.current.to_s+" :: trying to start callback server "+opts[:callback_server_ip]+':'+opts[:callback_server_port].to_s
             thread = CallbackServer.new.wait_for_callback(opts) { |msg| 
               puts "received msg from completely started server: "+msg              
             }
+            puts Thread.current.to_s+" :: before join"
             thread.join
+            puts Thread.current.to_s+" :: after join"
           end
           if start_vm[1] != 0
             raise(PoolStartException,'VM '+vm+' could not be started or resumed.')
           end
+          counter = 0
+          while get_ssh_connection_ip_of_vm(vm,opts) == nil && counter < 10
+            puts "waiting for vm "+vm+" to appear in "+opts[:vm_host_mac_ip_map_file]+" ... "+counter.to_s
+            sleep(1)
+            counter += 1
+          end
         end
       end
-    end    
+    end 
+    
     return vms
   end
   
   def delete_vm(opts,vm_name)
+    puts Thread.current.to_s+' :: deleting vm '+vm_name
     ## remove all snapshots of vm
     delete_all_snapshots(opts,vm_name)
     
@@ -399,6 +422,7 @@ class PoolManager
     end
     ## then delete vm
     result = [output,stopped_status]
+    puts Thread.current.to_s+' :: deleting vm '+vm_name+' stopped status '+stopped_status.to_s
     if (stopped_status == 0)
       result = deactivate_vm(opts,vm_name,'undefine --remove-all-storage')
     end
@@ -425,7 +449,7 @@ class PoolManager
     end
     puts delete[0]
     
-    return vm_name
+    return delete
   end
   
   def clone_base_vm(opts)    
