@@ -17,12 +17,31 @@ class EnvironmentManager
   DEFAULT_PUPTEST_ENV_NAME='puptest'
   DEFAULT_PP_CONF_DIR=File.join('/etc','puppet')
   DEFAULT_PP_CONF_FILE=File.join('/etc','puppet','puppet.conf')
+  
   def initialize(pp_conf_file=DEFAULT_PP_CONF_FILE,
       puptest_env=DEFAULT_PUPTEST_ENV_NAME, repo_url)
     @pp_conf_file = pp_conf_file
     ## load master properties
     @puptest_env = puptest_env
     @repo_url = repo_url
+  end
+  
+  def cleanup_puppetmaster_certs(certnames,pp_conf_file=self.pp_conf_file)
+    certnames.each do |certname|
+      ssh_connection_string = 'ssh -o StrictHostKeyChecking=no -o HashKnownHosts=no '+'root'+'@localhost'
+      puppetmaster_opts = reload_ppm_conf(pp_conf_file)
+      signed_certs_dir = File.join('/var','lib','puppet','ssl')
+      if puppetmaster_opts[:ssldir] != nil && puppetmaster_opts[:ssldir].strip != ''
+        signed_certs_dir = puppetmaster_opts[:ssldir]
+      end
+      signed_certs_dir = File.join(signed_certs_dir,'ca','signed')
+      result, statuscode = run_command(ssh_connection_string+' rm -f '+signed_certs_dir+File::SEPARATOR+certname+'.pem')
+      if statuscode != 0
+        raise(StandardError,'certification management problem occured: cert '+certname+'\n'+result.to_s)        
+      end
+    end
+    
+    return restart_puppetmaster()
   end
   
   def ensure_puptest_env_exists(repo_url=self.repo_url,pp_conf_file=self.pp_conf_file,
@@ -126,14 +145,23 @@ class EnvironmentManager
   end
   
   def reload_conf(pp_conf_file, puptest_env)
+    pp_conf = IniFile.load(pp_conf_file)    
+    puptest_env_opts = Configuration.new(pp_conf[puptest_env])
+    
+    return reload_ppm_conf(pp_conf_file), puptest_env_opts
+  end
+  
+  def reload_ppm_conf(pp_conf_file)
     pp_conf = IniFile.load(pp_conf_file)
-    puppetmaster_opts = Configuration.new(pp_conf['master'])
+    puppetmaster_opts = Configuration.new(pp_conf['main'])
+    
+    puppetmaster_specific_opts = Configuration.new(pp_conf['master'])
+    puppetmaster_opts = puppetmaster_opts.merge(puppetmaster_specific_opts)
     if (puppetmaster_opts[:confdir] == nil)
       puppetmaster_opts[:confdir] = File.join('etc','puppet')
     end
-    puptest_env_opts = Configuration.new(pp_conf[puptest_env])
     
-    return puppetmaster_opts, puptest_env_opts
+    return puppetmaster_opts
   end
   
 end
