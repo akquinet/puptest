@@ -10,6 +10,7 @@ class ScriptRunner
     @scripts = scripts
     @exec_counter = -1
     @pool_manager = pool_manager
+    @parent_mutex = Mutex.new
   end
   
   def run
@@ -54,7 +55,12 @@ class ScriptRunner
           result, statuscode = @pool_manager.run_command_in_pool_vm(command, selected_vm)
           script.add_result_by_command(command, result, statuscode)
         end
-        pool, selected_vm = @pool_manager.free(selected_vm)
+        puts "right before mutex"+thread.to_s
+        @parent_mutex.synchronize do
+          puts "in mutex"+thread.to_s
+          pool, selected_vm = @pool_manager.free(selected_vm)
+        end
+        puts "right after mutex"+thread.to_s
         inner_thread = run_next_script(selected_vm)
         if (inner_thread != nil)
           inner_thread.join
