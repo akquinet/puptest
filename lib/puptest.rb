@@ -18,8 +18,8 @@ class Puptest
     
   end
   
-  DEFAULT_CONFIG_FILE = File.join('etc','puptest','puptest.conf')
-  DEFAULT_PP_CONFIG_FILE = File.join('etc','puppet','puppet.conf')
+  DEFAULT_CONFIG_FILE = File.join('/etc','puptest','puptest.conf')
+  DEFAULT_PP_CONFIG_FILE = File.join('/etc','puppet','puppet.conf')
   
   def run(config_file, pp_config_file)
     ## 1: load configuration    
