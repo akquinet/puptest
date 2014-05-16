@@ -130,7 +130,7 @@ class SiteBuilder
     Dir.foreach(module_root) do |module_dir|
       abs_dir = module_root + File::SEPARATOR + module_dir
       if module_dir != '..' && module_dir != '.' && module_dir != nil
-        include_all_manifests_in_dir_recursively(abs_dir,module_dir,@module_files)      
+        include_all_manifests_in_dir_recursively(File.join(abs_dir,'manifests'),module_dir,@module_files)      
         parent_item = Item.new(Item::MODULE,:plain_name,module_dir)
         
         #### scan for module functions #### start
@@ -337,6 +337,11 @@ class SiteBuilder
     if trimmed_line =~ /^node\s.*\{.*/ 
       ## parse node name or node name regexp
       if ((depth_counter==0 && depth_zero_is_part_of_parent) || ref_as_parent)
+        puts "depth counter "+depth_counter.to_s
+        puts "depth zero is part of parent "+depth_zero_is_part_of_parent.to_s
+        puts "ref as parent "+ref_as_parent.to_s
+        puts "line: "+trimmed_line.to_s
+        puts "file: "+path_to_file.to_s
         raise(NotYetSupportedException,"nodes can not be part of modules")
       end
       match_reg_exp_rule = Regexp.new(/\/.*\//).match(trimmed_line) 
@@ -493,7 +498,8 @@ class SiteBuilder
   end
   
   def include_all_files_in_dir_recursively(file_suffix, dir,referee,file_map)
-    Dir.foreach(dir) do |entry|  
+    if File.exists?(dir) && File.directory?(dir)
+      Dir.foreach(dir) do |entry|  
       filesep = dir[-1,1] == File::SEPARATOR ? '' : File::SEPARATOR
       entry_path = dir + filesep + entry
       if File.directory?(entry_path)
@@ -504,6 +510,8 @@ class SiteBuilder
       elsif entry[-file_suffix.size,file_suffix.size] == file_suffix
         file_map[entry_path] = referee
       end
+    end
+    
     end
     
     return file_map
