@@ -1,6 +1,8 @@
 require 'date'
 require 'git'
 require 'json'
+require 'inifile'
+require 'thor'
 require 'librarian/action'
 require 'librarian/puppet'
 require 'librarian/resolver'
@@ -8,6 +10,8 @@ require "librarian/spec_change_set"
 require 'librarian/puppet/environment'
 require 'set'
 require 'fileutils'
+require 'rubygems'
+require 'socket'
 
 Gem::Specification.new do |s|
   s.authors = ['saheba']
