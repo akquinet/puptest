@@ -1,2 +1,4 @@
-#!/bin/sh
-./puptest_cli.rb "$@"
+#!/usr/bin/env ruby
+require 'puptest'
+
+Puptest::Cli.start(ARGV)

@@ -2,12 +2,12 @@
 # To change this template file, choose Tools | Templates
 # and open the template in the editor.
 
-$:.unshift File.join(File.dirname(__FILE__),'..','..','bin')
+#$:.unshift File.join(File.dirname(__FILE__),'..','..','bin')
 $:.unshift File.join(File.dirname(__FILE__),'..','..','lib')
-puts File.join(File.dirname(__FILE__),'..','..','bin')
+#puts File.join(File.dirname(__FILE__),'..','..','bin')
 puts File.join(File.dirname(__FILE__),'..','..','lib')
 
-require 'puptest_cli'
+require 'puptest'
 require 'test/unit'
 
 class DummyExecutor
@@ -26,7 +26,7 @@ class DummyExecutor
   end  
 end
 
-class PuptestCliMock < PuptestCli
+class PuptestCliMock < Puptest::Cli
   attr_reader :executor
   
   private
@@ -43,7 +43,7 @@ class PuptestCliTest < Test::Unit::TestCase
     cli.audit
     assert_not_nil(cli.executor)
     assert_equal(true,cli.executor.did_run)
-    assert_equal(Puptest::DEFAULT_CONFIG_FILE,cli.executor.cf)
-    assert_equal(Puptest::DEFAULT_PP_CONFIG_FILE,cli.executor.pcf)
+    assert_equal(Puptest::Runner::DEFAULT_CONFIG_FILE,cli.executor.cf)
+    assert_equal(Puptest::Runner::DEFAULT_PP_CONFIG_FILE,cli.executor.pcf)
   end
 end

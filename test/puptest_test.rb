@@ -5,7 +5,7 @@
 $:.unshift File.join(File.dirname(__FILE__),'..','lib')
 
 require 'test/unit'
-require 'puptest'
+require 'puptest/runner'
 require 'util/git_repo_manager'
 require 'util/command_module'
 
@@ -35,7 +35,7 @@ class PuptestTest < Test::Unit::TestCase
   end
   
   def test_run
-    puptest = Puptest.new()
+    puptest = Puptest::Runner.new()
     config_file = File.join(File.dirname(__FILE__),'puptest.conf')
     pp_config_file = File.join(@puppet_prod.dir.to_s,'puppet.conf')
     ## pp_config_file does not contain confdir variable

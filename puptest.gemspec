@@ -25,11 +25,12 @@ Gem::Specification.new do |s|
   s.require_path = "lib"
   s.bindir = "bin"
   s.version = '0.0.1'
-
+  s.executables = s.files.grep(%r{^bin/}) { |f| File.basename(f) }
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.require_paths = ['lib']
-  s.requirements = ['git 1.6.0.0, or greater','librarian-puppet 0.9.15, or greater',
-    'puppet 3.4.3, or greater', 'json 1.8.1, or greater', 'git 1.2.6.2, or greater'
+  s.requirements = ['git 1.2.6.2, or greater','librarian-puppet 1.0.2, or greater',
+    'puppet 3.6.0, or greater', 'json 1.8.1, or greater', 'inifile 2.0.2, or greater',
+    'librarian 0.1.2, or greater', 'thor 0.18.1, or greater'
   ]
 
   s.add_development_dependency 'rake'
