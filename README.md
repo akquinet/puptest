@@ -50,22 +50,17 @@ virsh pool-define-as puptest dir --target /opt/kvm
 virsh pool-start puptest
 virsh pool-autostart puptest
 cd /opt/kvm
-## download puptest_base sample vm
-wget 
-## download corresponding qemu xml definition
-wget http://bit.ly/QXeRKU
 
-## if the bit.ly links do not work, try cloning the sample repository
+## cloning the base vm sample repository into your vm pool
 git clone https://github.com/saheba/puptest_base_vm_sample.git
-
+cd puptest_base_vm_sample
+unzip puptest_base_vm_sample.zip
 ```
 
-adjust path in the xml definition to your pool path (if it is not /opt/kvm, e.g. if you cloned the sample repository) and if you are on rhel/centos/fedora, replace '/usr/bin/kvm' with '/usr/libexec/qemu-kvm' and 'pc-1.1' with 'pc' inside the xml definition (for details about this see: http://serverfault.com/questions/358252/error-internal-error-process-exited-while-connecting-to-monitor-supported-mach)
+adjust path in the xml definition to your pool path (if it is not /opt/kvm, e.g. if you cloned the sample repository it is: /opt/kvm/puptest_base_vm_sample) and if you are on rhel/centos/fedora, replace '/usr/bin/kvm' with '/usr/libexec/qemu-kvm' and 'pc-1.1' with 'pc' inside the xml definition (for details about this see: http://serverfault.com/questions/358252/error-internal-error-process-exited-while-connecting-to-monitor-supported-mach)
 
 then add the base vm to virsh:
 ```shell
-virsh define /opt/kvm/puptest_base.xml
-## or if you clone the sample repository:
 virsh define /opt/kvm/puptest_base_vm_sample/puptest_base.xml
 ```
 
