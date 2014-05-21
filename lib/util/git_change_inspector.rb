@@ -87,13 +87,13 @@ class GitChangeInspector
     puts "pushing ..."
     puts scm_repo.branch(opts[:dev_branch]).checkout
     begin
-      puts scm_repo.push('origin',opts[:dev_branch],{:tags => true})
+      puts scm_repo.push('origin',opts[:dev_branch],{:tags => true, :force => true})
     rescue Git::GitExecuteError => gee
       puts "rescued unsuccessful push: "
       puts gee.to_s
     end
     begin
-      puts scm_repo.push('origin',opts[:change_set_branch],{:tags => true})
+      puts scm_repo.push('origin',opts[:change_set_branch],{:tags => true, :force => true})
     rescue Git::GitExecuteError => gee
       puts "rescued unsuccessful push: "
       puts gee.to_s    
