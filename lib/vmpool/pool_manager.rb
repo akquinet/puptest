@@ -40,7 +40,7 @@ class PoolManager
     opts[:init_snapshot_name] = PUPTEST_INIT_STATE if opts[:init_snapshot_name] == nil
     opts[:pool_vm_login] = 'root' if opts[:pool_vm_login] == nil
     opts[:pool_vm_identity_file] = '/tmp/puptest-base_rsa' if opts[:pool_vm_identity_file] == nil
-    
+    opts[:vm_pool_network] = '192.168.122' if opts[:vm_pool_network] == nil
     # note that key-based ssh authentication is required for security reasons  
     return opts
   end
@@ -95,6 +95,7 @@ class PoolManager
   end
   
   def start_pool(opts=self.opts)
+    @vm_ip_map = Hash.new
     virsh_connection = get_virsh_connection_string(opts)
     
     ensure_base_vm_exists(opts)
@@ -193,23 +194,23 @@ class PoolManager
     return get_all_pool_vms(opts,true)
   end
   
-  def get_ip_mac_map_of_host_interface(opts)
-    ssh_connection = get_ssh_connection_string(opts)
-    entry_list = run_command(ssh_connection+' grep '+opts[:vm_host_interface]+' '+opts[:vm_host_mac_ip_map_file])
-    plain_entries = entry_list[0].split(/\n/)
-    
-    mac_ip_map = Hash.new
-    plain_entries.each do |entry_line|
-      ip_entry = regexp_match_ip(entry_line)
-      mac_entry = regexp_match_mac(entry_line)
-      if ip_entry && mac_entry
-        ## last occurrence wins (i.e. overwrites previous occurrences)
-        mac_ip_map[mac_entry[0]] = ip_entry[0]        
-      end
-    end
-    
-    return mac_ip_map
-  end
+#  def get_ip_mac_map_of_host_interface(opts)
+#    ssh_connection = get_ssh_connection_string(opts)
+#    entry_list = run_command(ssh_connection+' grep '+opts[:vm_host_interface]+' '+opts[:vm_host_mac_ip_map_file])
+#    plain_entries = entry_list[0].split(/\n/)
+#    
+#    mac_ip_map = Hash.new
+#    plain_entries.each do |entry_line|
+#      ip_entry = regexp_match_ip(entry_line)
+#      mac_entry = regexp_match_mac(entry_line)
+#      if ip_entry && mac_entry
+#        ## last occurrence wins (i.e. overwrites previous occurrences)
+#        mac_ip_map[mac_entry[0]] = ip_entry[0]        
+#      end
+#    end
+#    
+#    return mac_ip_map
+#  end
   
   def get_vm_ssh_connection_string(vm,opts=self.opts)
     ip = get_ssh_connection_ip_of_vm(vm,opts)
@@ -228,37 +229,38 @@ class PoolManager
   end
   
   def get_ssh_connection_ip_of_vm(vm,opts=self.opts)
-    mac_ip_map = get_ip_mac_map_of_host_interface(opts)
-    mac_ip_map.each do |mac,ip|
-#      puts Thread.current.to_s+" :: found mac -> ip relation: "+mac.to_s+' -> '+ip.to_s
-    end
-    ## determine mac address of vm
-    virsh_connection = get_virsh_connection_string(opts)    
-    domiflist,statuscode = run_command(virsh_connection+' domiflist '+vm)
-    if statuscode != 0
-      raise(ConnectionOrExecuteException,'virsh domiflist failed for vm: '+vm)
-    end
-    iflist_lines = domiflist.split(/\n/)
-        
-    iflist_lines.each do |line|
-      regexp = Regexp.new(/#{opts[:vm_network_for_ssh]}/)
-      network_match = regexp.match(line)            
-      if network_match
-        mac_address = regexp_match_mac(line)
-        if (mac_address)
-          ip = 'nil'
-          if mac_ip_map[mac_address[0]]
-            ip = mac_ip_map[mac_address[0]]
-          end
-          puts Thread.current.to_s+" :: found mac address "+mac_address[0]+" for vm "+vm+' -> '+ip
-        end
-         if (mac_address && mac_ip_map[mac_address[0]])
-          return mac_ip_map[mac_address[0]]
-        end
-      end
-    end
-    
-    return nil
+    return @vm_ip_map[vm]
+#    mac_ip_map = get_ip_mac_map_of_host_interface(opts)
+#    mac_ip_map.each do |mac,ip|
+##      puts Thread.current.to_s+" :: found mac -> ip relation: "+mac.to_s+' -> '+ip.to_s
+#    end
+#    ## determine mac address of vm
+#    virsh_connection = get_virsh_connection_string(opts)    
+#    domiflist,statuscode = run_command(virsh_connection+' domiflist '+vm)
+#    if statuscode != 0
+#      raise(ConnectionOrExecuteException,'virsh domiflist failed for vm: '+vm)
+#    end
+#    iflist_lines = domiflist.split(/\n/)
+#        
+#    iflist_lines.each do |line|
+#      regexp = Regexp.new(/#{opts[:vm_network_for_ssh]}/)
+#      network_match = regexp.match(line)            
+#      if network_match
+#        mac_address = regexp_match_mac(line)
+#        if (mac_address)
+#          ip = 'nil'
+#          if mac_ip_map[mac_address[0]]
+#            ip = mac_ip_map[mac_address[0]]
+#          end
+#          puts Thread.current.to_s+" :: found mac address "+mac_address[0]+" for vm "+vm+' -> '+ip
+#        end
+#         if (mac_address && mac_ip_map[mac_address[0]])
+#          return mac_ip_map[mac_address[0]]
+#        end
+#      end
+#    end
+#    
+#    return nil
   end
   
   ## scripts is an array of Script objects
@@ -386,7 +388,11 @@ class PoolManager
             start_vm = run_command(virsh_connection+' start '+vm)
             puts Thread.current.to_s+" :: trying to start callback server "+opts[:callback_server_ip]+':'+opts[:callback_server_port].to_s
             thread = CallbackServer.new.wait_for_callback(opts) { |msg| 
-              puts "received msg from completely started server: "+msg              
+              puts "received msg from completely started server: "+msg 
+              vm_ip = add_ip_to_vm_ip_map(vm,msg,@vm_ip_map,opts)
+              if (vm_ip == nil)
+                raise(ConnectionOrExecuteException,'did not found ip of vm in callback message or could not parse the callback message properly.')
+              end
             }
             puts Thread.current.to_s+" :: before join"
             thread.join
@@ -406,6 +412,21 @@ class PoolManager
     end 
     
     return vms
+  end
+  
+  def add_ip_to_vm_ip_map(vm,msg,map,opts)
+    ips = msg.split(',')
+    ips.each do |ip|
+      ipt = ip.strip
+      match = Regexp.new(/^#{opts[:vm_pool_network]}/).match(ipt)      
+      ends_with_1 = Regexp.new(/\.1$/).match(ipt)
+      ends_with_255 = Regexp.new(/\.255$/).match(ipt)
+      if (match && !ends_with_1 && !ends_with_255)
+          map[vm] = ipt
+      end
+    end
+       
+    return map[vm]
   end
   
   def delete_vm(opts,vm_name)
