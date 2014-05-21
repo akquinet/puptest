@@ -22,9 +22,12 @@ install the minimally required version of libvirt which puptest depends on:
 
 ## on rhel/centos/fedora
 yum -y install libxml2 libxml2-devel device-mapper-libs device-mapper-devel libpciaccess-devel libcurl-devel python-devel libnl-devel gcc
+yum -y install libvirt python-virtinst
 ## on debian/ubuntu
 apt-get install libxml2 libxml2-dev libdevmapper-dev libcurl4-openssl-dev libcurl4 python-dev libnl-dev gcc
+apt-get install libvirt-bin virtinst
 
+## now that we have all the compilation and runtime dependencies, we can upgrade libvirt i.e. libvirt-bin:
 wget http://libvirt.org/sources/libvirt-1.0.6.tar.gz
 tar xzf libvirt-1.0.6.tar.gz
 cd libvirt-1.0.6
@@ -72,6 +75,20 @@ yum install git
 ## or on debian systems
 apt-get install git
 ```
+
+make sure that your git is at least on version 1.7.10.4 and at max 1.8.2.3 by running 'git --version'. If it is not (this is probably the case on rhel and centos systems), install it from source:
+```shell
+wget https://www.kernel.org/pub/software/scm/git/git-1.8.2.3.tar.gz
+tar xzf git-1.8.2.3.tar.gz
+cd git-1.8.2.3
+./configure
+make
+make prefix=/usr install
+git --version
+## should give the following output
+git version 1.8.2.3
+```
+Please open a pull request, when you successfully used Puptest with a git version newer than 1.8.2.3. So far, only the versions 1.7.10.4 and 1.8.2.3 have been tested successfully.
 
 ### install puppet server
 for instructions see: http://docs.puppetlabs.com/guides/install_puppet/pre_install.html#next-install-puppet
@@ -131,7 +148,19 @@ groups | grep rvm
 If you get error messages during the following steps, please make sure that the CI-user is in the group 'rvm'.
 
 ```shell
-gem install librarian-puppet git json puppet inifile thor
+## as root
+## IMPORTANT: perform the same libvirt-installation as you did on your kvm host
+
+gem install librarian-puppet json puppet inifile thor
+git clone https://github.com/saheba/ruby-git.git
+cd ruby-git
+git checkout multiple_merges
+gem build git.gemspec
+gem install git-1.2.6.2.gem
+
+## as ci: do not forget to set git global username and email:
+git config --global user.email "you@example.com"
+git config --global user.name "Your Name"
 ```
 
 ### as the CI-user: install puptest
@@ -166,7 +195,18 @@ Commands:
 
 ```
 
-### as the ci user: configure puptest
+### as the CI-user: configure puptest
+the CI-user needs read and write permissions inside /etc/puppet:
+```shell
+## as root
+chgrp -R ci /etc/puppet
+chmod -R 775 /etc/puppet
+## this changes the repository, so you have to push these changes to your remote:
+cd /etc/puppet
+git commit -a -m "permissions for ci set"
+git push --all
+```
+
 ```shell
 cd /etc
 mkdir puptest
@@ -178,5 +218,20 @@ wget https://raw.githubusercontent.com/saheba/puptest/master/test/vmpool/puptest
 
 Inside /etc/puptest/puptest.conf change:
 - the repo_url to your puppetmaster git repository containing your manifests, your puppet.conf, templates, etc.
+- the vm_host_url if your puppetmaster is on a separate system than your virtualization environment, the default value localhost has to be changed to the ip or url of your virtualization host
 - the pool_vm_identity_file to /etc/puptest/puptest-base_rsa if you use the standard puptest_base vm or to the rsa private key file you referenced in /root/.ssh/authorized_keys in your own puptest_base vm.
 - the vol_pool_path to the directory that you have defined as your kvm pool 
+
+on your virtualization host:
+start the puptest_base vm and change the callback_server url from 192.168.122.1 inside /etc/pptconnect.rb to your puppetmaster ip or url. The credentials of the sample vm are: root, pw: puptest-base .
+Also if you have set up your own base vm make sure, that
+1) you have placed the small callback client script https://raw.githubusercontent.com/saheba/puptest/master/test/vmpool/puppet-base_etc_pptconnect.rb under /etc/pptconnect.rb:
+```shell
+server_ip = segments[0]+'.'+segments[1]+'.'+segments[2]+'.1'
+server_ip = 'your.puppetmaster.domain'
+```
+
+and 2) you have added the following line at the end of /etc/rc.local in your base vm:
+```shell
+/usr/bin/ruby /etc/pptconnect.rb
+```
