@@ -75,17 +75,30 @@ class GitChangeInspector
     scm_repo.add(opts[:change_set_filename])
     scm_repo.commit_all('updated puptest history: latest change set moved to '+new_name+', added new change set')
     
-    scm_repo.checkout(change_set.promoted_commit)
+    puts scm_repo.checkout(change_set.promoted_commit)
     begin
     scm_repo.delete_tag(opts[:promoted_ref])
     rescue Git::GitExecuteError
-      puts "rescued failed tag deletion"
+      puts "rescued unsuccessful tag deletion"
     end
+    
     scm_repo.add_tag(opts[:promoted_ref])
+    
     puts "pushing ..."
-    puts scm_repo.push('origin',opts[:dev_branch],{:tags => true})
-    puts scm_repo.push('origin',opts[:change_set_branch],{:tags => true})    
-    puts "... pushing"
+    puts scm_repo.branch(opts[:dev_branch]).checkout
+    begin
+      puts scm_repo.push('origin',opts[:dev_branch],{:tags => true})
+    rescue Git::GitExecuteError => gee
+      puts "rescued unsuccessful push: "
+      puts gee.to_s
+    end
+    begin
+      puts scm_repo.push('origin',opts[:change_set_branch],{:tags => true})
+    rescue Git::GitExecuteError => gee
+      puts "rescued unsuccessful push: "
+      puts gee.to_s    
+    end    
+    puts "... pushed"
     return nil
   end
   
