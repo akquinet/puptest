@@ -59,7 +59,7 @@ class Runner
     scripts.each do |script|
       certnames.add(script.name)
     end
-    environment_manager.cleanup_puppetmaster_certs(certnames,pp_config_file)
+    environment_manager.cleanup_puppetmaster_certs(certnames,pp_config_file,config_reader.opts[:pool_vm_domain])
     
     ## 7: start vm pool
     pool_manager = PoolManager.new(config_reader.opts)

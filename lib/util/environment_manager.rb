@@ -26,7 +26,7 @@ class EnvironmentManager
     @repo_url = repo_url
   end
   
-  def cleanup_puppetmaster_certs(certnames,pp_conf_file=self.pp_conf_file)
+  def cleanup_puppetmaster_certs(certnames,pp_conf_file=self.pp_conf_file,domain=nil)
     certnames.each do |certname|
       ssh_connection_string = 'ssh -o StrictHostKeyChecking=no -o HashKnownHosts=no '+'root'+'@localhost'
       puppetmaster_opts = reload_ppm_conf(pp_conf_file)
@@ -35,7 +35,13 @@ class EnvironmentManager
         signed_certs_dir = puppetmaster_opts[:ssldir]
       end
       signed_certs_dir = File.join(signed_certs_dir,'ca','signed')
-      result, statuscode = run_command(ssh_connection_string+' rm -f '+signed_certs_dir+File::SEPARATOR+certname+'.pem')
+      real_certname = certname
+      if domain != nil
+        real_certname = certname + domain
+      end
+      abs_cert = signed_certs_dir+File::SEPARATOR+real_certname+'.pem'
+      puts "removing cert from master:"+abs_cert
+      result, statuscode = run_command(ssh_connection_string+' rm -f '+abs_cert)
       if statuscode != 0
         raise(StandardError,'certification management problem occured: cert '+certname+'\n'+result.to_s)        
       end
